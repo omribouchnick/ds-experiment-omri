@@ -1,10 +1,12 @@
 from django.contrib.sessions.models import Session
 from django.shortcuts import render, redirect
 from django.http import HttpResponseForbidden
+from django.conf import settings
 import requests
 import pandas as pd
 import random
 import datetime
+import os
 from .models import *
 
 
@@ -18,7 +20,8 @@ def load_block_trials() -> tuple:
         - ps, dprime_h, dprime_s: values from the selected row
     """
     # Load CSV and filter for ANY unused row
-    event_data = pd.read_csv("data/conditions_experiment_3ps_11x11_120_A.csv")
+    csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
+    event_data = pd.read_csv(csv_path)
     available_rows = event_data[event_data['used'] == 0].copy()
     
     if len(available_rows) == 0:
@@ -76,9 +79,10 @@ def load_block_trials() -> tuple:
 
 def mark_row_as_used(row_id: int):
     """Mark a CSV row as used=1 after experiment completion."""
-    event_data = pd.read_csv("data/conditions_experiment_3ps_11x11_120_A.csv")
+    csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
+    event_data = pd.read_csv(csv_path)
     event_data.loc[event_data['id'] == row_id, 'used'] = 1
-    event_data.to_csv("data/conditions_experiment_3ps_11x11_120_A.csv", index=False)
+    event_data.to_csv(csv_path, index=False)
 
 
 def landing_page(request):
@@ -365,7 +369,7 @@ def save_db(request):
         users_df = pd.DataFrame.from_dict(users_dict, orient='index',
                                           columns=['user_id', 'aid', 'ps', 'human_sensitivity', 'ds_sensitivity',
                                                    'start_time', 'complete', 'end_time'])
-        users_df.to_csv('data/experiment_data.csv', index=False)
+        users_df.to_csv(os.path.join(settings.BASE_DIR, 'data', 'experiment_data.csv'), index=False)
 
         # ---- ExperimentAction ----
         actions_dict = {}
@@ -386,7 +390,7 @@ def save_db(request):
                                                      'classification_decision',
                                                      'stimulus_seen', 'dss_judgment',
                                                      'decision_time', 'correct_classification'])
-        actions_df.to_csv('data/experiment_actions.csv', index=False)
+        actions_df.to_csv(os.path.join(settings.BASE_DIR, 'data', 'experiment_actions.csv'), index=False)
 
         # ---- TOAST ----
         actions_dict = {}
@@ -407,7 +411,7 @@ def save_db(request):
         actions_df = pd.DataFrame.from_dict(actions_dict, orient='index',
                                             columns=['user_id', 'q1', 'q2', 'q3', 'q4',
                                                      'q5', 'q6', 'q7', 'q8', 'q9'])
-        actions_df.to_csv('data/TOAST.csv', index=False)
+        actions_df.to_csv(os.path.join(settings.BASE_DIR, 'data', 'TOAST.csv'), index=False)
 
         return redirect('/login/')
     else:
