@@ -23,10 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-rtoiw=m&%@=$3pw6cre#@ni=m8tp-9pnfu&bo3l*&$sp0k9(2b'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True  # Set to True for local development (static files won't work if False)
+DEBUG = False  # Set to True for local development (static files won't work if False)
 
-ALLOWED_HOSTS = ['*', 'iwitlabtau.pythonanywhere.com']
-
+ALLOWED_HOSTS = ['omribouch.pythonanywhere.com', 'www.omribouch.pythonanywhere.com']
 # Application definition
 
 INSTALLED_APPS = [
