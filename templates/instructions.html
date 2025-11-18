@@ -93,7 +93,7 @@
         }
 
         img {
-            max-width: 100%;
+            max-width: 50%;
             height: auto;
         }
 
@@ -139,8 +139,8 @@
     <div class="container">
         {% if screen == 1 %}
             <h2>Welcome to the Experiment</h2>
-            <p><b>Role:</b> Assume that you are a mechanic in an autonomous-car factory.</p>
-            <p><b>Your Task:</b> You will monitor autonomous car modules and decide whether a module needs to be inspected manually or not.</p>
+            <p><b>Role:</b> Assume that you are a engineer in an autonomous-vehicle factory.</p>
+            <p><b>Your Task:</b> You will monitor autonomous vehicle modules and decide whether a module needs to be inspected manually or not.</p>
             <p>Please read each instruction screen carefully. When you're ready, click "Next" to proceed to the next screen.</p>
             <div class="button-container">
                 <button type="submit" name="Continue" value="continue" class="button next">Next</button>
@@ -150,7 +150,7 @@
             <p><b>Machine Output:</b> Each module shows a number indicating the probability it needs inspection. Higher numbers = more likely to need intervention.</p>
             <p><b>Block 1 (Practice - 10 trials):</b> You will see only the machine output number. Use this number alone to decide whether the module needs an intervention based on the provided Machine Output number.</p>
             <div>
-                <center><img src="/static/images/autocar_full_output.png" alt="Image"></center>
+                <center><img src="/static/images/auto_car_example.png" alt="Image"></center>
             </div>
             <div class="button-container">
                 <button type="submit" name="Continue" value="back" class="button back">Back</button>
@@ -182,14 +182,14 @@
         {% elif screen == 5 %}
             <h2>Ready for Block 2</h2>
             <div class="div_text">
-                <p>Now you will start another 10 trials practice block that you will see in it the machine output number and the DS system's colored rectangle (red = Alarm, green = No Alarm).</p>
+                <p>Now you will start another 10 trials practice block. In each trial you will see in the machine output number and the DS system's output as a colored rectangle (red = Alarm, green = No Alarm).</p>
                 <p>Remember: The DS system can be wrong. Make your own decision based on *all* available information.</p>
                 <p>Scoring works the same as Block 1 - you'll get feedback after each decision.</p>
             </div>
             <br><br>
             <div class="div_fig">
                   <center>
-                    <img src="/static/images/autocar_full_output.png" width="300px" height="auto" alt="Image">
+                    <img src="/static/images/auto_car_example.png" width="300px" height="auto" alt="Image">
                   </center>
             </div>
             <div class="button-container">
