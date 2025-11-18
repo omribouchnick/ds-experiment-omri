@@ -26,6 +26,7 @@ SECRET_KEY = 'django-insecure-rtoiw=m&%@=$3pw6cre#@ni=m8tp-9pnfu&bo3l*&$sp0k9(2b
 DEBUG = False  # Set to True for local development (static files won't work if False)
 
 ALLOWED_HOSTS = ['omribouch.pythonanywhere.com', 'www.omribouch.pythonanywhere.com']
+# ALLOWED_HOSTS = ['*', 'omribouch.pythonanywhere.com', 'www.omribouch.pythonanywhere.com', 'localhost', '127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [

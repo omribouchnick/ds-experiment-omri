@@ -24,8 +24,8 @@
         }
 
         .container {
-            width: 320px;
-            height: 420px;
+            width: 350px;
+            height: 525px;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -131,12 +131,24 @@
         .div_buttons {
             display: flex;
             justify-content: center;  /* Center the buttons */
+            align-items: center;  /* Center vertically */
             gap: 10px;  /* Space between buttons */
             margin-top: 0px;
+            padding: 0 20px;  /* Add horizontal padding to ensure centering */
+            width: 100%;  /* Ensure full width */
+        }
+
+        .div_buttons form {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            margin: 0 auto;  /* Center the form */
         }
 
         button.big-button {
-            flex: 1;  /* Make buttons equal size */
+            flex: 0 0 auto;  /* Don't grow/shrink, auto size */
             min-width: 140px;
             max-width: 160px;
             padding: 12px 8px;
@@ -218,7 +230,14 @@
         </div>
 
         <div class="div_buttons">
-            <form method="POST" id="classificationForm">
+            <form method="POST" id="classificationForm" style="
+                display: flex;
+                flex-direction: row;
+                gap: 20px;
+                justify-content: center;
+                margin-top: 20px;
+                margin-left: 7px;
+            ">
                 {% csrf_token %}
                 <input type="hidden" name="Classification" id="classificationInput">
                 <button class="big-button" type="button" onclick="handleClassification(event, 'signal')">Check Manualy<br><span class="small-text">(Intervention)</span></button>
