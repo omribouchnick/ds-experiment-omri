@@ -19,6 +19,9 @@ def load_block_trials() -> tuple:
         - row_id: CSV row ID for marking as used later
         - ps, dprime_h, dprime_s: values from the selected row
     """
+    # Scalar to add to all stimuli values (makes task harder without changing probabilities)
+    STIMULI_SCALAR = 6.5
+    
     # Load CSV and filter for ANY unused row
     csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
     event_data = pd.read_csv(csv_path)
@@ -48,8 +51,8 @@ def load_block_trials() -> tuple:
         t_str = format_trial_num(trial_num)
         data_dict[1][trial_num] = {
             'event': selected_row[f'event_t{t_str}'],
-            'stimuli': float(selected_row[f'h_t{t_str}']),  # Human evidence from CSV
-            'ds_stimuli': float(selected_row[f's_t{t_str}']),  # System evidence from CSV
+            'stimuli': float(selected_row[f'h_t{t_str}']) + STIMULI_SCALAR,  # Human evidence from CSV + scalar
+            'ds_stimuli': float(selected_row[f's_t{t_str}']) + STIMULI_SCALAR,  # System evidence from CSV + scalar
             'ds_judgment': int(selected_row[f'ds_dec_t{t_str}'])  # DS decision from CSV
         }
     
@@ -59,8 +62,8 @@ def load_block_trials() -> tuple:
         t_str = format_trial_num(trial_num)
         data_dict[2][block_trial_num] = {
             'event': selected_row[f'event_t{t_str}'],
-            'stimuli': float(selected_row[f'h_t{t_str}']),  # Human evidence from CSV
-            'ds_stimuli': float(selected_row[f's_t{t_str}']),  # System evidence from CSV
+            'stimuli': float(selected_row[f'h_t{t_str}']) + STIMULI_SCALAR,  # Human evidence from CSV + scalar
+            'ds_stimuli': float(selected_row[f's_t{t_str}']) + STIMULI_SCALAR,  # System evidence from CSV + scalar
             'ds_judgment': int(selected_row[f'ds_dec_t{t_str}'])  # DS decision from CSV
         }
     
@@ -69,8 +72,8 @@ def load_block_trials() -> tuple:
         t_str = format_trial_num(trial_num)
         data_dict[3][trial_num] = {
             'event': selected_row[f'event_t{t_str}'],
-            'stimuli': float(selected_row[f'h_t{t_str}']),  # Human evidence from CSV
-            'ds_stimuli': float(selected_row[f's_t{t_str}']),  # System evidence from CSV
+            'stimuli': float(selected_row[f'h_t{t_str}']) + STIMULI_SCALAR,  # Human evidence from CSV + scalar
+            'ds_stimuli': float(selected_row[f's_t{t_str}']) + STIMULI_SCALAR,  # System evidence from CSV + scalar
             'ds_judgment': int(selected_row[f'ds_dec_t{t_str}'])  # DS decision from CSV
         }
     
