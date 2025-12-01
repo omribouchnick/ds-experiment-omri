@@ -2,7 +2,6 @@ from django.contrib.sessions.models import Session
 from django.shortcuts import render, redirect
 from django.http import HttpResponseForbidden
 from django.conf import settings
-import requests
 import pandas as pd
 import random
 import datetime
@@ -297,16 +296,21 @@ def game(request):
         request.session['screen_entry_time'] = datetime.datetime.now().isoformat()
 
     if request.session["block"] <= 2 and request.session["trial"] > 10:  # Blocks 1 & 2 have 10 trials each
+        block_scores = request.session.get("block_scores", {})
         if request.session["block"] == 1:
-            request.session["block_scores"][1] = [request.session["score"], False]
+            block_scores[1] = [request.session["score"], False]
             request.session["current_screen"] = 4  # Go to Block 2 instructions after Block 1
         if request.session["block"] == 2:
-            request.session["block_scores"][2] = [request.session["score"], True]
+            block_scores[2] = [request.session["score"], True]
+            request.session["current_screen"] = 6  # Go to Block 3 instructions after Block 2
         else:
-            request.session["block_scores"][2] = [request.session["score"], True]
+            block_scores[2] = [request.session["score"], True]
+        request.session["block_scores"] = block_scores
         return redirect('/instructions/')
     elif request.session["block"] == 3 and request.session["trial"] > 100:  # Block 3 has 100 trials
-        request.session["block_scores"][3] = [request.session["score"], request.session["pd"]]
+        block_scores = request.session.get("block_scores", {})
+        block_scores[3] = [request.session["score"], request.session["pd"]]
+        request.session["block_scores"] = block_scores
         request.session["pd"] = True
         request.session["score"] = 30
         request.session["trial"] = 1
