@@ -183,18 +183,19 @@ def recaptcha(request):
 
 
 def instructions(request):
-    current_screen = request.session.get("current_screen", "1")
+    current_screen = int(request.session.get("current_screen", 1))
     
     # Prevent access to Block 2 instructions (screen 4) before completing Block 1
     if current_screen == 4:
         # Check if Block 1 was completed
-        if 'block_scores' not in request.session or 1 not in request.session.get("block_scores", {}):
+        block_scores = request.session.get("block_scores", {})
+        if not block_scores or 1 not in block_scores:
             # Block 1 not completed, redirect to screen 3 (Scoring System)
             current_screen = 3
             request.session["current_screen"] = 3
     
     context = {
-        "screen": current_screen, 'ds_sensitivity': request.session["ds_sensitivity"],
+        "screen": int(current_screen), 'ds_sensitivity': request.session["ds_sensitivity"],
         "v_tp": 1, "v_fp": 1, "v_tn": 1, "v_fn": 2,
     }
     if request.method == "POST":
@@ -298,12 +299,17 @@ def game(request):
 
     if request.session["block"] <= 2 and request.session["trial"] > 10:  # Blocks 1 & 2 have 10 trials each
         if request.session["block"] == 1:
+            if "block_scores" not in request.session:
+                request.session["block_scores"] = {}
             request.session["block_scores"][1] = [request.session["score"], False]
             request.session["current_screen"] = 4  # Go to Block 2 instructions after Block 1
-        if request.session["block"] == 2:
+            request.session.save()  # Ensure session is saved before redirect
+        elif request.session["block"] == 2:
+            if "block_scores" not in request.session:
+                request.session["block_scores"] = {}
             request.session["block_scores"][2] = [request.session["score"], True]
-        else:
-            request.session["block_scores"][2] = [request.session["score"], True]
+            request.session["current_screen"] = 6  # Go to Block 3 instructions after Block 2
+            request.session.save()  # Ensure session is saved before redirect
         return redirect('/instructions/')
     elif request.session["block"] == 3 and request.session["trial"] > 100:  # Block 3 has 100 trials
         request.session["block_scores"][3] = [request.session["score"], request.session["pd"]]
