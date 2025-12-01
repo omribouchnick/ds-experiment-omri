@@ -143,9 +143,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
-            width: 100%;
-            margin: 0 auto;  /* Center the form */
+            gap: 20px;
+            width: auto;
+            margin: 20px auto 0;
         }
 
         button.big-button {
@@ -231,14 +231,7 @@
         </div>
 
         <div class="div_buttons">
-            <form method="POST" id="classificationForm" style="
-                display: flex;
-                flex-direction: row;
-                gap: 20px;
-                justify-content: center;
-                margin-top: 20px;
-                margin-left: 7px;
-            ">
+            <form method="POST" id="classificationForm">
                 {% csrf_token %}
                 <input type="hidden" name="Classification" id="classificationInput">
                 <button class="big-button" type="button" onclick="handleClassification(event, 'signal')">Intervene</button>

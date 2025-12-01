@@ -23,7 +23,6 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            box-sizing: border-box;
         }
 
         h2 {
@@ -53,25 +52,20 @@
             align-items: center;
             flex-wrap: wrap;
             margin-top: 20px;
-            margin-left: -20px;  /* Offset container padding */
-            margin-right: -20px;  /* Offset container padding */
-            padding: 0 20px;  /* Add padding back for spacing */
-            width: calc(100% + 40px);  /* Account for negative margins */
-            box-sizing: border-box;
+            padding: 0 20px;
+            width: 100%;
         }
 
         .button {
-            flex: 0 0 auto;  /* Don't grow/shrink, use natural size */
+            flex: 1;
             min-width: 120px;
-            max-width: 200px;
-            padding: 15px 25px;
+            padding: 15px;
             color: white;
             text-align: center;
             font-size: 18px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            box-sizing: border-box;
         }
         
         .button.back {
