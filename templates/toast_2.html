@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TOAST Questionnaire</title>
   <style>
+    /* Global styling - matching instructions.html */
     body {
       font-family: Arial, sans-serif;
       line-height: 1.6;
@@ -13,14 +14,38 @@
       background-color: #f4f4f4;
     }
 
+    /* Container styling - matching instructions.html */
     .container {
       width: 90%;
-      max-width: 800px;
+      max-width: 600px;
       margin: 50px auto;
       background-color: white;
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+
+    /* Subtle decorative image */
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 100px;
+      height: 100px;
+      background-image: url('/static/images/auto_car_example.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.1;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container > * {
+      position: relative;
+      z-index: 1;
     }
 
     h1 {
@@ -54,11 +79,12 @@
       margin-top: 30px;
     }
 
+    /* Button styling - matching instructions.html blue button */
     .button {
       display: inline-block;
-      width: 60%;
+      min-width: 120px;
       padding: 15px;
-      background-color: #ADD8E6;
+      background-color: #3498db;  /* Blue matching instructions */
       color: white;
       text-align: center;
       font-size: 18px;
@@ -70,9 +96,10 @@
     }
 
     .button:hover {
-      background-color: #87CEFA;
+      background-color: #2980b9;  /* Darker blue on hover */
     }
 
+    /* Responsive design - matching instructions.html */
     @media only screen and (max-width: 768px) {
       h1 { font-size: 22px; }
       .question p { font-size: 16px; }
@@ -81,6 +108,8 @@
 
     @media only screen and (max-width: 480px) {
       .container { margin: 20px; padding: 15px; }
+      h1 { font-size: 20px; }
+      .question p { font-size: 14px; }
       .button { padding: 12px; }
     }
   </style>
@@ -88,7 +117,7 @@
 <body>
   <div class="container">
     <h1>Questionnaire</h1>
-    <p style="text-align: center; font-size: 16px; margin-top: -10px;">
+    <p style="text-align: center; font-size: 18px; margin-top: -10px;">
       Please answer all the following questions by moving the sliders. All responses are required.
     </p>
     <form method="POST" onsubmit="return validateForm()">

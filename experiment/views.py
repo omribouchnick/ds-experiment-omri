@@ -121,16 +121,32 @@ def landing_page(request):
 
 
 # View for the consent form page
+# def consent_form(request):
+#     if request.method == "POST":
+#         if request.POST['Continue'] == 'begin_experiment':
+#             request.session["current_screen"] = 1
+#             return redirect('/recaptcha/')
+#         elif request.POST['Continue'] == 'end_experiment':
+#             return redirect('/end/')  # Redirect to the instruction page (replace with actual URL name)
+
+#     return render(request, 'consent_form.html')
+
 def consent_form(request):
     if request.method == "POST":
         if request.POST['Continue'] == 'begin_experiment':
             request.session["current_screen"] = 1
             return redirect('/recaptcha/')
         elif request.POST['Continue'] == 'end_experiment':
-            return redirect('/end/')  # Redirect to the instruction page (replace with actual URL name)
+            # If user never started (no user_id), redirect directly to CloudResearch
+            # without creating a database entry
+            if 'user_id' not in request.session:
+                aid = request.session.get("aid", "test")
+                return redirect(f'https://app.cloudresearch.com/Router/ThankYouTerm?aid={aid}')
+            else:
+                # If they started but quit, go to end page to mark as incomplete
+                return redirect('/end/')
 
     return render(request, 'consent_form.html')
-
 
 def recaptcha(request):
     # Skip reCAPTCHA for local testing
@@ -204,21 +220,38 @@ def instructions(request):
 
 
 def end(request):
+    # If user never started (no user_id), redirect directly to CloudResearch
+    if 'user_id' not in request.session:
+        aid = request.session.get("aid", "test")
+        return redirect(f'https://app.cloudresearch.com/Router/ThankYouTerm?aid={aid}')
+    
+    # Check if user completed the experiment:
+    # 1. Must have 120 actions (all trials completed)
+    # 2. Must have completed TOAST questionnaire
     action_count = ExperimentAction.objects.filter(user_id=request.session["user_id"]).count()
-    if action_count >= 120:
-        participant = ExperimentData.objects.get(user_id=request.session["user_id"])
+    participant = ExperimentData.objects.get(user_id=request.session["user_id"])
+    
+    # Check if TOAST questionnaire was completed
+    has_toast_response = TOASTResponse.objects.filter(user_id=request.session["user_id"]).exists()
+    
+    # User is complete ONLY if both conditions are met
+    if action_count >= 120 and has_toast_response:
         participant.complete = True
         request.session["complete"] = True
     else:
-        participant = ExperimentData.objects.get(user_id=request.session["user_id"])
+        # Incomplete user - mark as incomplete and redirect directly to ThankYouTerm
         participant.complete = False
         request.session["complete"] = False
+        participant.end_time = datetime.datetime.now().isoformat()
+        participant.save()
+        
+        aid = request.session.get("aid", "test")
+        return redirect(f'https://app.cloudresearch.com/Router/ThankYouTerm?aid={aid}')
+    
+    # Only complete users reach here - update end_time and show completion page
     exp_start_time = datetime.datetime.fromisoformat(request.session["experiment_start_time"])
     exp_end_time = datetime.datetime.now().isoformat()
-    exp_time = (datetime.datetime.now() - exp_start_time).total_seconds()
     participant.end_time = exp_end_time
-
-    # Save changes to DB
     participant.save()
 
     aid = request.session["aid"]

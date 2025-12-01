@@ -223,7 +223,7 @@
         </div>
 
         <div class="div_value">
-            <p class="text_alarm" style="text-align: center; margin-bottom: 5px;">Machine Output:</p>
+            <p class="text_alarm" style="text-align: center; margin-bottom: 5px;">Module Reading:</p>
             <div style="text-align: center;">
                 <p class="text_pi">{{ stimuli }}</p>
             </div>
@@ -240,8 +240,8 @@
             ">
                 {% csrf_token %}
                 <input type="hidden" name="Classification" id="classificationInput">
-                <button class="big-button" type="button" onclick="handleClassification(event, 'signal')">Check Manualy<br><span class="small-text">(Intervention)</span></button>
-                <button class="big-button" type="button" onclick="handleClassification(event, 'noise')">Skip<br><span class="small-text">(No Intervention)</span></button>
+                <button class="big-button" type="button" onclick="handleClassification(event, 'signal')">Intervene</button>
+                <button class="big-button" type="button" onclick="handleClassification(event, 'noise')">Skip</button>
             </form>
         </div>
     </div>
