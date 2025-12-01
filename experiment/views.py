@@ -2,6 +2,7 @@ from django.contrib.sessions.models import Session
 from django.shortcuts import render, redirect
 from django.http import HttpResponseForbidden
 from django.conf import settings
+import csv
 import pandas as pd
 import random
 import datetime
@@ -421,62 +422,69 @@ def toast_2(request):
 
 
 def save_db(request):
-    if request.session['authenticated']:
-        users_dict = {}
-        for idx, user in enumerate(ExperimentData.objects.all()):
-            users_dict[idx] = [user.user_id, user.aid, user.ps, user.human_sensitivity, user.ds_sensitivity, user.start_time,
-                               user.complete, user.end_time]
+    if request.session.get('authenticated'):
+        data_dir = os.path.join(settings.BASE_DIR, 'data')
+        os.makedirs(data_dir, exist_ok=True)
 
-        users_df = pd.DataFrame.from_dict(users_dict, orient='index',
-                                          columns=['user_id', 'aid', 'ps', 'human_sensitivity', 'ds_sensitivity',
-                                                   'start_time', 'complete', 'end_time'])
-        users_df.to_csv(os.path.join(settings.BASE_DIR, 'data', 'experiment_data.csv'), index=False)
+        # ExperimentData export
+        users_path = os.path.join(data_dir, 'experiment_data.csv')
+        with open(users_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['user_id', 'aid', 'ps', 'human_sensitivity', 'ds_sensitivity',
+                             'start_time', 'complete', 'end_time'])
+            for user in ExperimentData.objects.order_by('user_id'):
+                writer.writerow([
+                    user.user_id,
+                    user.aid,
+                    user.ps,
+                    user.human_sensitivity,
+                    user.ds_sensitivity,
+                    user.start_time.isoformat() if user.start_time else '',
+                    user.complete,
+                    user.end_time if user.end_time else ''
+                ])
 
-        # ---- ExperimentAction ----
-        actions_dict = {}
-        for idx, action in enumerate(ExperimentAction.objects.all()):
-            actions_dict[idx] = [
-                action.user_id.user_id,
-                action.block_number,
-                action.trial_number,
-                action.classification_decision,
-                action.stimulus_seen,
-                action.dss_judgment,
-                action.decision_time,
-                action.correct_classification
-            ]
+        # ExperimentAction export
+        actions_path = os.path.join(data_dir, 'experiment_actions.csv')
+        with open(actions_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['user_id', 'block_number', 'trial_number', 'classification_decision',
+                             'stimulus_seen', 'dss_judgment', 'decision_time', 'correct_classification'])
+            for action in ExperimentAction.objects.order_by('user_id', 'block_number', 'trial_number'):
+                writer.writerow([
+                    action.user_id.user_id,
+                    action.block_number,
+                    action.trial_number,
+                    action.classification_decision,
+                    action.stimulus_seen,
+                    action.dss_judgment,
+                    action.decision_time,
+                    action.correct_classification
+                ])
 
-        actions_df = pd.DataFrame.from_dict(actions_dict, orient='index',
-                                            columns=['user_id', 'block_number', 'trial_number',
-                                                     'classification_decision',
-                                                     'stimulus_seen', 'dss_judgment',
-                                                     'decision_time', 'correct_classification'])
-        actions_df.to_csv(os.path.join(settings.BASE_DIR, 'data', 'experiment_actions.csv'), index=False)
-
-        # ---- TOAST ----
-        actions_dict = {}
-        for idx, action in enumerate(TOASTResponse.objects.all()):
-            actions_dict[idx] = [
-                action.user_id.user_id,
-                action.usefulness,
-                action.reliability,
-                action.trust,
-                action.confidence,
-                action.satisfaction,
-                action.predictability,
-                action.predictability,
-                action.surprised,
-                action.comfortable
-            ]
-
-        actions_df = pd.DataFrame.from_dict(actions_dict, orient='index',
-                                            columns=['user_id', 'q1', 'q2', 'q3', 'q4',
-                                                     'q5', 'q6', 'q7', 'q8', 'q9'])
-        actions_df.to_csv(os.path.join(settings.BASE_DIR, 'data', 'TOAST.csv'), index=False)
+        # TOAST export
+        toast_path = os.path.join(data_dir, 'TOAST.csv')
+        with open(toast_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['user_id', 'usefulness', 'reliability', 'trust', 'confidence',
+                             'satisfaction', 'predictability', 'understandability',
+                             'surprised', 'comfortable'])
+            for response in TOASTResponse.objects.order_by('user_id'):
+                writer.writerow([
+                    response.user_id.user_id,
+                    response.usefulness,
+                    response.reliability,
+                    response.trust,
+                    response.confidence,
+                    response.satisfaction,
+                    response.predictability,
+                    response.understandability,
+                    response.surprised,
+                    response.comfortable
+                ])
 
         return redirect('/login/')
-    else:
-        return redirect('/login/')
+    return redirect('/login/')
 
 def login(request):
     if request.method == 'POST':
