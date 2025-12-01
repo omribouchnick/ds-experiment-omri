@@ -353,9 +353,9 @@ def game(request):
         else:
             print("WARNING: No user_id in session - action not saved!")
 
-
-            request.session["trial"] += 1
-            del request.session['screen_entry_time']
+        # Always increment trial and clear screen entry time (regardless of user_id)
+        request.session["trial"] += 1
+        del request.session['screen_entry_time']
 
         return redirect('/game/')
 
