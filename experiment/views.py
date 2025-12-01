@@ -183,16 +183,38 @@ def recaptcha(request):
 
 
 def instructions(request):
-    current_screen = request.session.get("current_screen", 1)
+    current_screen = request.session.get("current_screen", "1")
+    
+    # Prevent access to Block 2 instructions (screen 4) before completing Block 1
+    if current_screen == 4:
+        # Check if Block 1 was completed
+        if 'block_scores' not in request.session or 1 not in request.session.get("block_scores", {}):
+            # Block 1 not completed, redirect to screen 3 (Scoring System)
+            current_screen = 3
+            request.session["current_screen"] = 3
+    
     context = {
         "screen": current_screen, 'ds_sensitivity': request.session["ds_sensitivity"],
         "v_tp": 1, "v_fp": 1, "v_tn": 1, "v_fn": 2,
     }
     if request.method == "POST":
         if request.POST['Continue'] == 'continue':
-            request.session["current_screen"] += 1
+            # Prevent going to screen 4 (Block 2) before completing Block 1
+            current_screen = request.session.get("current_screen", 1)
+            if current_screen == 3:
+                # Screen 3 should go to Block 1 game, not screen 4
+                # This should not happen as screen 3 has "Start the Experiment" button
+                pass
+            else:
+                request.session["current_screen"] += 1
         elif request.POST['Continue'] == 'back':
-            request.session["current_screen"] -= 1
+            current_screen = request.session.get("current_screen", 1)
+            # Prevent going back to screen 4 if Block 1 not completed
+            if current_screen == 4 and 'block_scores' in request.session and 1 not in request.session.get("block_scores", {}):
+                # Block 1 not completed, can't access Block 2 instructions
+                request.session["current_screen"] = 3
+            else:
+                request.session["current_screen"] -= 1
         elif request.POST['Continue'] == 'start_block_1':
             request.session["current_screen"] += 1
             request.session["pd"] = False
@@ -276,15 +298,12 @@ def game(request):
 
     if request.session["block"] <= 2 and request.session["trial"] > 10:  # Blocks 1 & 2 have 10 trials each
         if request.session["block"] == 1:
-            if "block_scores" not in request.session:
-                request.session["block_scores"] = {}
             request.session["block_scores"][1] = [request.session["score"], False]
             request.session["current_screen"] = 4  # Go to Block 2 instructions after Block 1
-        elif request.session["block"] == 2:
-            if "block_scores" not in request.session:
-                request.session["block_scores"] = {}
+        if request.session["block"] == 2:
             request.session["block_scores"][2] = [request.session["score"], True]
-            request.session["current_screen"] = 6  # Go to Block 3 instructions after Block 2
+        else:
+            request.session["block_scores"][2] = [request.session["score"], True]
         return redirect('/instructions/')
     elif request.session["block"] == 3 and request.session["trial"] > 100:  # Block 3 has 100 trials
         request.session["block_scores"][3] = [request.session["score"], request.session["pd"]]
@@ -328,34 +347,26 @@ def game(request):
             request.session["score"] -= 1  # False Positive (unnecessary intervention)
 
         if 'user_id' in request.session:
-            try:
-                # Get the ExperimentData instance using the user_id
-                experiment_data = ExperimentData.objects.get(user_id=request.session["user_id"])
-                print(f"DEBUG: Saving action - User: {request.session['user_id']}, Block: {request.session['block']}, Trial: {request.session['trial']}")
-                # Create or update ExperimentAction (use update_or_create to avoid duplicates)
-                action, created = ExperimentAction.objects.update_or_create(
-                    user_id=experiment_data,
-                    block_number=request.session["block"],
-                    trial_number=request.session["trial"],
-                    defaults={
-                        'classification_decision': request.session["classification"],
-                        'stimulus_seen': stimuli,
-                        'dss_judgment': 'signal' if ds_judgment == 1 else 'noise',
-                        'decision_time': time_spent,
-                        'correct_classification': event_type
-                    }
-                )
-                print(f"DEBUG: Action saved - {'Created' if created else 'Updated'}: {action}")
-            except ExperimentData.DoesNotExist:
-                print(f"ERROR: ExperimentData not found for user_id: {request.session['user_id']}")
-            except Exception as e:
-                print(f"ERROR: Failed to save action: {str(e)}")
-        else:
-            print("WARNING: No user_id in session - action not saved!")
+            # Get the ExperimentData instance using the user_id
+            experiment_data = ExperimentData.objects.get(user_id=request.session["user_id"])
+            print(request.session["block"],request.session["trial"])
+            # Create or update ExperimentAction (use get_or_create to avoid duplicates)
+            ExperimentAction.objects.update_or_create(
+                user_id=experiment_data,
+                block_number=request.session["block"],
+                trial_number=request.session["trial"],
+                defaults={
+                    'classification_decision': request.session["classification"],
+                    'stimulus_seen': stimuli,
+                    'dss_judgment': 'signal' if ds_judgment == 1 else 'noise',
+                    'decision_time': time_spent,
+                    'correct_classification': event_type
+                }
+            )
 
-        # Always increment trial and clear screen entry time (regardless of user_id)
-        request.session["trial"] += 1
-        del request.session['screen_entry_time']
+
+            request.session["trial"] += 1
+            del request.session['screen_entry_time']
 
         return redirect('/game/')
 
