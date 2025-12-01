@@ -328,22 +328,30 @@ def game(request):
             request.session["score"] -= 1  # False Positive (unnecessary intervention)
 
         if 'user_id' in request.session:
-            # Get the ExperimentData instance using the user_id
-            experiment_data = ExperimentData.objects.get(user_id=request.session["user_id"])
-            print(request.session["block"],request.session["trial"])
-            # Create or update ExperimentAction (use get_or_create to avoid duplicates)
-            ExperimentAction.objects.update_or_create(
-                user_id=experiment_data,
-                block_number=request.session["block"],
-                trial_number=request.session["trial"],
-                defaults={
-                    'classification_decision': request.session["classification"],
-                    'stimulus_seen': stimuli,
-                    'dss_judgment': 'signal' if ds_judgment == 1 else 'noise',
-                    'decision_time': time_spent,
-                    'correct_classification': event_type
-                }
-            )
+            try:
+                # Get the ExperimentData instance using the user_id
+                experiment_data = ExperimentData.objects.get(user_id=request.session["user_id"])
+                print(f"DEBUG: Saving action - User: {request.session['user_id']}, Block: {request.session['block']}, Trial: {request.session['trial']}")
+                # Create or update ExperimentAction (use update_or_create to avoid duplicates)
+                action, created = ExperimentAction.objects.update_or_create(
+                    user_id=experiment_data,
+                    block_number=request.session["block"],
+                    trial_number=request.session["trial"],
+                    defaults={
+                        'classification_decision': request.session["classification"],
+                        'stimulus_seen': stimuli,
+                        'dss_judgment': 'signal' if ds_judgment == 1 else 'noise',
+                        'decision_time': time_spent,
+                        'correct_classification': event_type
+                    }
+                )
+                print(f"DEBUG: Action saved - {'Created' if created else 'Updated'}: {action}")
+            except ExperimentData.DoesNotExist:
+                print(f"ERROR: ExperimentData not found for user_id: {request.session['user_id']}")
+            except Exception as e:
+                print(f"ERROR: Failed to save action: {str(e)}")
+        else:
+            print("WARNING: No user_id in session - action not saved!")
 
 
             request.session["trial"] += 1
