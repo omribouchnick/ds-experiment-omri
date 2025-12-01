@@ -49,8 +49,11 @@
             display: flex;
             gap: 10px;
             justify-content: center;
+            align-items: center;
             flex-wrap: wrap;
             margin-top: 20px;
+            padding: 0 20px;
+            width: 100%;
         }
 
         .button {
@@ -151,6 +154,7 @@
             <p><b>Block 1 (Practice):</b> You will see only the module reading. Use this number alone to decide whether the module needs an intervention.</p>
             <div>
                 <center><img src="/static/images/auto_car_example.png" alt="Image"></center>
+                # <center><img src="/static/images/first_block_pic.png" alt="Image"></center>
             </div>
             <div class="button-container">
                 <button type="submit" name="Continue" value="back" class="button back">Back</button>
@@ -161,7 +165,7 @@
             <p>You start with 30 points. After each decision, your score will be updated:</p>
             <ul>
                 <li><p>If an intervention was needed and you correctly identify it, you earn <b>{{ v_tp }} point</b>. If you miss it, you lose <b>{{ v_fn }} points</b>.</p></li>
-                <li><p>If an intervention was not needed and you correctly identify that, you earn <b>{{ v_tn }} point</b>. If you mistakenly indicate that it was needed, you lose <b>{{ v_fp }} point</b>.</p></li>
+                <li><p>If an intervention was <b>not needed</b> and you correctly identify that, you earn <b>{{ v_tn }} point</b>. If you mistakenly indicate that it was needed, you lose <b>{{ v_fp }} point</b>.</p></li>
             </ul>
             <div class="button-container">
                 <button type="submit" name="Continue" value="back" class="button back">Back</button>
@@ -170,23 +174,13 @@
         {% elif screen == 4 %}
             <h2>Block 2 (Practice with DS)</h2>
             <p><b>What's Different:</b> Now you'll see both the module reading AND a Decision Support (DS) system recommendation.</p>
-            <p><b>DS System:</b> The system shows a colored rectangle:</p>
+            <p><b>DS System:</b> The DS is an AI system that learned from data and can help you by providing advice. The system shows a colored rectangle:</p>
             <ul>
                 <li><p><b>Red rectangle</b> = "Alarm" (system recommends intervention)</p></li>
-                <li><p><b>Green rectangle</b> = "No Alarm" (system says no intervention needed)</p></li>
+                <li><p><b>Green rectangle</b> = "No Alarm" (system says no intervention needed and you can skip)</p></li>
             </ul>
             <p><b>Important:</b> The DS system is not perfect - it can make mistakes. Be aware of its output and use your judgment to decide whether to follow its recommendation or not.</p>
-            <div class="button-container">
-                <button type="submit" name="Continue" value="continue" class="button next">Next</button>
-            </div>
-        {% elif screen == 5 %}
-            <h2>Ready for Block 2</h2>
-            <div class="div_text">
-                <p>Now you will start another practice block. In each trial you will see the module reading and the DS system's output as a colored rectangle (red = Alarm, green = No Alarm).</p>
-                <p>Remember: The DS system can be wrong. Make your own decision based on *all* available information.</p>
-                <p>Scoring works the same as Block 1 - you'll get feedback after each decision.</p>
-            </div>
-            <br><br>
+            <p>Remember: Make your own decision based on *all* available information. Scoring works the same as Block 1 - you'll get feedback after each decision.</p>
             <div class="div_fig">
                   <center>
                     <img src="/static/images/auto_car_example.png" width="300px" height="auto" alt="Image">
