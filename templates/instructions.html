@@ -95,10 +95,11 @@
             background-color: #229954;
         }
 
-        /* Make Block 2 buttons equal size */
+        /* Make Block 2 buttons equal size - more specific selector */
         .button-container .button.back,
         .button-container .button.start {
-            flex: 1;
+            flex: 1 1 0 !important;  /* Equal flex growth */
+            min-width: 120px;
             max-width: 250px;
         }
 
@@ -160,7 +161,7 @@
             <p><b>Module Reading:</b> Each module has been inspected and shows a reading (a number). Higher numbers indicate a higher probability that the module needs manual inspection. Use this reading to decide whether the module needs an intervention.</p>
             <p><b>Block 1 (Practice):</b> You will see only the module reading. Use this number alone to decide whether the module needs an intervention.</p>
             <div>
-                <center><img src="/static/images/block1_instructions.png" alt="Image"></center>
+                <center><img src="/static/images/Glucometer/block1_instructions.png" alt="Image"></center>
             </div>
             <div class="button-container">
                 <button type="submit" name="Continue" value="back" class="button back">Back</button>

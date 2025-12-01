@@ -184,15 +184,37 @@ def recaptcha(request):
 
 def instructions(request):
     current_screen = request.session.get("current_screen", "1")
+    
+    # Prevent access to Block 2 instructions (screen 4) before completing Block 1
+    if current_screen == 4:
+        # Check if Block 1 was completed
+        if 'block_scores' not in request.session or 1 not in request.session.get("block_scores", {}):
+            # Block 1 not completed, redirect to screen 3 (Scoring System)
+            current_screen = 3
+            request.session["current_screen"] = 3
+    
     context = {
         "screen": current_screen, 'ds_sensitivity': request.session["ds_sensitivity"],
         "v_tp": 1, "v_fp": 1, "v_tn": 1, "v_fn": 2,
     }
     if request.method == "POST":
         if request.POST['Continue'] == 'continue':
-            request.session["current_screen"] += 1
+            # Prevent going to screen 4 (Block 2) before completing Block 1
+            current_screen = request.session.get("current_screen", 1)
+            if current_screen == 3:
+                # Screen 3 should go to Block 1 game, not screen 4
+                # This should not happen as screen 3 has "Start the Experiment" button
+                pass
+            else:
+                request.session["current_screen"] += 1
         elif request.POST['Continue'] == 'back':
-            request.session["current_screen"] -= 1
+            current_screen = request.session.get("current_screen", 1)
+            # Prevent going back to screen 4 if Block 1 not completed
+            if current_screen == 4 and 'block_scores' in request.session and 1 not in request.session.get("block_scores", {}):
+                # Block 1 not completed, can't access Block 2 instructions
+                request.session["current_screen"] = 3
+            else:
+                request.session["current_screen"] -= 1
         elif request.POST['Continue'] == 'start_block_1':
             request.session["current_screen"] += 1
             request.session["pd"] = False
@@ -277,6 +299,7 @@ def game(request):
     if request.session["block"] <= 2 and request.session["trial"] > 10:  # Blocks 1 & 2 have 10 trials each
         if request.session["block"] == 1:
             request.session["block_scores"][1] = [request.session["score"], False]
+            request.session["current_screen"] = 4  # Go to Block 2 instructions after Block 1
         if request.session["block"] == 2:
             request.session["block_scores"][2] = [request.session["score"], True]
         else:
