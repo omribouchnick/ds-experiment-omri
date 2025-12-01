@@ -231,7 +231,17 @@
         </div>
 
         <div class="div_buttons">
-            <form method="POST" id="classificationForm">
+            <form method="POST" id="classificationForm" style="
+                display: flex;
+                flex-direction: row;
+                gap: 20px;
+                justify-content: center;
+                width: 100%;
+                max-width: 320px;
+                margin: 20px auto 0 auto;
+                padding: 0 10px;
+                box-sizing: border-box;
+            ">
                 {% csrf_token %}
                 <input type="hidden" name="Classification" id="classificationInput">
                 <button class="big-button" type="button" onclick="handleClassification(event, 'signal')">Intervene</button>
