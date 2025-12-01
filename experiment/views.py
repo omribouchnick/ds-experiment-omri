@@ -182,35 +182,33 @@ def recaptcha(request):
 
 
 def instructions(request):
-    current_screen = request.session.get("current_screen", "1")
+    current_screen = int(request.session.get("current_screen", 1))
+    block_scores = request.session.get("block_scores", {})
+    
+    def _has_block_score(block_number: int) -> bool:
+        return block_number in block_scores or str(block_number) in block_scores
     
     # Prevent access to Block 2 instructions (screen 4) before completing Block 1
     if current_screen == 4:
-        # Check if Block 1 was completed
-        if 'block_scores' not in request.session or 1 not in request.session.get("block_scores", {}):
-            # Block 1 not completed, redirect to screen 3 (Scoring System)
+        if not _has_block_score(1):
             current_screen = 3
             request.session["current_screen"] = 3
     
     context = {
-        "screen": current_screen, 'ds_sensitivity': request.session["ds_sensitivity"],
+        "screen": current_screen,
+        'ds_sensitivity': request.session["ds_sensitivity"],
         "v_tp": 1, "v_fp": 1, "v_tn": 1, "v_fn": 2,
     }
     if request.method == "POST":
         if request.POST['Continue'] == 'continue':
-            # Prevent going to screen 4 (Block 2) before completing Block 1
-            current_screen = request.session.get("current_screen", 1)
+            current_screen = int(request.session.get("current_screen", 1))
             if current_screen == 3:
-                # Screen 3 should go to Block 1 game, not screen 4
-                # This should not happen as screen 3 has "Start the Experiment" button
                 pass
             else:
                 request.session["current_screen"] += 1
         elif request.POST['Continue'] == 'back':
-            current_screen = request.session.get("current_screen", 1)
-            # Prevent going back to screen 4 if Block 1 not completed
-            if current_screen == 4 and 'block_scores' in request.session and 1 not in request.session.get("block_scores", {}):
-                # Block 1 not completed, can't access Block 2 instructions
+            current_screen = int(request.session.get("current_screen", 1))
+            if current_screen == 4 and not _has_block_score(1):
                 request.session["current_screen"] = 3
             else:
                 request.session["current_screen"] -= 1
@@ -298,18 +296,18 @@ def game(request):
     if request.session["block"] <= 2 and request.session["trial"] > 10:  # Blocks 1 & 2 have 10 trials each
         block_scores = request.session.get("block_scores", {})
         if request.session["block"] == 1:
-            block_scores[1] = [request.session["score"], False]
+            block_scores["1"] = [request.session["score"], False]
             request.session["current_screen"] = 4  # Go to Block 2 instructions after Block 1
         if request.session["block"] == 2:
-            block_scores[2] = [request.session["score"], True]
+            block_scores["2"] = [request.session["score"], True]
             request.session["current_screen"] = 6  # Go to Block 3 instructions after Block 2
         else:
-            block_scores[2] = [request.session["score"], True]
+            block_scores["2"] = [request.session["score"], True]
         request.session["block_scores"] = block_scores
         return redirect('/instructions/')
     elif request.session["block"] == 3 and request.session["trial"] > 100:  # Block 3 has 100 trials
         block_scores = request.session.get("block_scores", {})
-        block_scores[3] = [request.session["score"], request.session["pd"]]
+        block_scores["3"] = [request.session["score"], request.session["pd"]]
         request.session["block_scores"] = block_scores
         request.session["pd"] = True
         request.session["score"] = 30
