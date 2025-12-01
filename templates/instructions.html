@@ -95,6 +95,13 @@
             background-color: #229954;
         }
 
+        /* Make Block 2 buttons equal size */
+        .button-container .button.back,
+        .button-container .button.start {
+            flex: 1;
+            max-width: 250px;
+        }
+
         img {
             max-width: 50%;
             height: auto;
@@ -153,8 +160,7 @@
             <p><b>Module Reading:</b> Each module has been inspected and shows a reading (a number). Higher numbers indicate a higher probability that the module needs manual inspection. Use this reading to decide whether the module needs an intervention.</p>
             <p><b>Block 1 (Practice):</b> You will see only the module reading. Use this number alone to decide whether the module needs an intervention.</p>
             <div>
-                <center><img src="/static/images/auto_car_example.png" alt="Image"></center>
-                # <center><img src="/static/images/first_block_pic.png" alt="Image"></center>
+                <center><img src="/static/images/block1_instructions.png" alt="Image"></center>
             </div>
             <div class="button-container">
                 <button type="submit" name="Continue" value="back" class="button back">Back</button>
@@ -183,7 +189,7 @@
             <p>Remember: Make your own decision based on *all* available information. Scoring works the same as Block 1 - you'll get feedback after each decision.</p>
             <div class="div_fig">
                   <center>
-                    <img src="/static/images/auto_car_example.png" width="300px" height="auto" alt="Image">
+                    <img src="/static/images/block2_instructions.png" width="300px" height="auto" alt="Image">
                   </center>
             </div>
             <div class="button-container">
