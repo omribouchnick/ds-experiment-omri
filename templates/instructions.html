@@ -96,12 +96,13 @@
             background-color: #229954;
         }
 
-        /* Make Block 2 buttons equal size - more specific selector */
+        /* Make all button pairs equal size */
         .button-container .button.back,
-        .button-container .button.start {
-            flex: 1 1 0 !important;  /* Equal flex growth */
+        .button-container .button.start,
+        .button-container .button.next {
+            flex: 1 1 0 !important;
             min-width: 120px;
-            max-width: 250px;
+            max-width: 200px;
         }
 
         img {
