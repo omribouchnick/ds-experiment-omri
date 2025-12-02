@@ -41,6 +41,14 @@ class TOASTResponse(models.Model):
     understandability = models.IntegerField(null=True, blank=True)
     surprised = models.IntegerField(null=True, blank=True)
     comfortable = models.IntegerField(null=True, blank=True)
+    # Numeracy questions (1-6 scale)
+    numeracy_fractions = models.IntegerField(null=True, blank=True)
+    numeracy_shirt = models.IntegerField(null=True, blank=True)
+    numeracy_useful = models.IntegerField(null=True, blank=True)
+    # Demographics
+    age_group = models.CharField(max_length=50, null=True, blank=True)
+    gender = models.CharField(max_length=50, null=True, blank=True)
+    education = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
-        return f"TOAST for User {self.user.user_id}"
+        return f"TOAST for User {self.user_id.user_id}"

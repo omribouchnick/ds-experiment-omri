@@ -16,5 +16,7 @@ urlpatterns = [
     path('fresh_restart/', views.fresh_restart, name='fresh_restart'),
     path('toast_1/', views.toast_1, name='toast_1'),
     path('toast_2/', views.toast_2, name='toast_2'),
+    path('toast_3/', views.toast_3, name='toast_3'),
+    path('toast_4/', views.toast_4, name='toast_4'),
     path('recaptcha/', views.recaptcha, name='recaptcha'),
 ]

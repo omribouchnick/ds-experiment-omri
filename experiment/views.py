@@ -388,15 +388,29 @@ def toast_1(request):
     return render(request, 'toast_1.html')
 
 def toast_2(request):
-    experiment_data = ExperimentData.objects.get(user_id=request.session["user_id"])
-
     if request.method == 'POST':
         request.session["q5"] = request.POST.get('satisfaction')
         request.session["q6"] = request.POST.get('accuracy')
         request.session["q7"] = request.POST.get('consistency')
         request.session["q8"] = request.POST.get('surprised')
         request.session["q9"] = request.POST.get('comfortable')
+        return redirect('/toast_3/')
 
+    return render(request, 'toast_2.html')
+
+def toast_3(request):
+    if request.method == 'POST':
+        request.session["numeracy_fractions"] = request.POST.get('numeracy_fractions')
+        request.session["numeracy_shirt"] = request.POST.get('numeracy_shirt')
+        request.session["numeracy_useful"] = request.POST.get('numeracy_useful')
+        return redirect('/toast_4/')
+
+    return render(request, 'toast_3.html')
+
+def toast_4(request):
+    experiment_data = ExperimentData.objects.get(user_id=request.session["user_id"])
+
+    if request.method == 'POST':
         TOASTResponse.objects.create(
             user_id=experiment_data,
             usefulness=request.session["q1"],
@@ -407,18 +421,22 @@ def toast_2(request):
             predictability=request.session["q6"],
             understandability=request.session["q7"],
             surprised=request.session["q8"],
-            comfortable=request.session["q9"]
+            comfortable=request.session["q9"],
+            numeracy_fractions=request.session["numeracy_fractions"],
+            numeracy_shirt=request.session["numeracy_shirt"],
+            numeracy_useful=request.session["numeracy_useful"],
+            age_group=request.POST.get('age_group'),
+            gender=request.POST.get('gender'),
+            education=request.POST.get('education')
         )
         
         # Mark CSV row as used only after questionnaire completion
-        # This ensures incomplete sessions keep the row available (used=0)
         if 'csv_row_id' in request.session:
             mark_row_as_used(request.session['csv_row_id'])
-            print(f"DEBUG: Marked CSV row {request.session['csv_row_id']} as used=1 (session completed)")
 
         return redirect('/end/')
 
-    return render(request, 'toast_2.html')
+    return render(request, 'toast_4.html')
 
 
 def save_db(request):
@@ -468,7 +486,8 @@ def save_db(request):
             writer = csv.writer(csvfile)
             writer.writerow(['user_id', 'usefulness', 'reliability', 'trust', 'confidence',
                              'satisfaction', 'predictability', 'understandability',
-                             'surprised', 'comfortable'])
+                             'surprised', 'comfortable', 'numeracy_fractions', 'numeracy_shirt',
+                             'numeracy_useful', 'age_group', 'gender', 'education'])
             for response in TOASTResponse.objects.order_by('user_id'):
                 writer.writerow([
                     response.user_id.user_id,
@@ -480,7 +499,13 @@ def save_db(request):
                     response.predictability,
                     response.understandability,
                     response.surprised,
-                    response.comfortable
+                    response.comfortable,
+                    response.numeracy_fractions,
+                    response.numeracy_shirt,
+                    response.numeracy_useful,
+                    response.age_group,
+                    response.gender,
+                    response.education
                 ])
 
         return redirect('/login/')
