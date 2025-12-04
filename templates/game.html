@@ -273,16 +273,31 @@
 </script>
 
 <script>
-// DevTools detection - logs when console is opened
+// DevTools detection - two methods combined
 (function() {
+    function logDevTools(method) {
+        if (!window._devToolsLogged) {
+            window._devToolsLogged = true;
+            navigator.sendBeacon('/log_devtools/', JSON.stringify({
+                trial: typeof currentTrial !== 'undefined' ? currentTrial : 0,
+                method: method
+            }));
+        }
+    }
+    
+    // Method 1: Window size (detects docked DevTools)
+    const threshold = 160;
+    setInterval(function() {
+        if (window.outerWidth - window.innerWidth > threshold || 
+            window.outerHeight - window.innerHeight > threshold) {
+            logDevTools('window_size');
+        }
+    }, 1000);
+    
+    // Method 2: Console getter (detects when console renders objects)
     const devToolsCheck = new Image();
     Object.defineProperty(devToolsCheck, 'id', {
-        get: function() {
-            if (!window._devToolsLogged) {
-                window._devToolsLogged = true;
-                navigator.sendBeacon('/log_devtools/', JSON.stringify({trial: typeof currentTrial !== 'undefined' ? currentTrial : 0}));
-            }
-        }
+        get: function() { logDevTools('console_getter'); }
     });
     setInterval(function() { console.log('%c', devToolsCheck); }, 1000);
 })();
