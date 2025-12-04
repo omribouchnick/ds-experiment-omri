@@ -19,4 +19,5 @@ urlpatterns = [
     path('toast_3/', views.toast_3, name='toast_3'),
     path('toast_4/', views.toast_4, name='toast_4'),
     path('recaptcha/', views.recaptcha, name='recaptcha'),
+    path('log_devtools/', views.log_devtools, name='log_devtools'),
 ]

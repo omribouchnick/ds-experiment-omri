@@ -1,6 +1,7 @@
 from django.contrib.sessions.models import Session
 from django.shortcuts import render, redirect
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 import csv
 import pandas as pd
@@ -555,3 +556,17 @@ def fresh_restart(request):
         return redirect('/login/')
     else:
         return redirect('/login/')
+
+
+@csrf_exempt
+def log_devtools(request):
+    """Log when user opens DevTools (detected via console getter trick)"""
+    if request.method == 'POST':
+        user_id = request.session.get('user_id')
+        if user_id:
+            ExperimentAction.objects.create(
+                user_id=user_id,
+                action_type='devtools_detected',
+                details=request.body.decode('utf-8')
+            )
+    return JsonResponse({'status': 'ok'})

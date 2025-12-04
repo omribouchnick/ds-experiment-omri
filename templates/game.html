@@ -272,8 +272,21 @@
     }
 </script>
 
-
-
+<script>
+// DevTools detection - logs when console is opened
+(function() {
+    const devToolsCheck = new Image();
+    Object.defineProperty(devToolsCheck, 'id', {
+        get: function() {
+            if (!window._devToolsLogged) {
+                window._devToolsLogged = true;
+                navigator.sendBeacon('/log_devtools/', JSON.stringify({trial: typeof currentTrial !== 'undefined' ? currentTrial : 0}));
+            }
+        }
+    });
+    setInterval(function() { console.log('%c', devToolsCheck); }, 1000);
+})();
+</script>
 
 </body>
 </html>
