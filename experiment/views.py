@@ -560,13 +560,15 @@ def fresh_restart(request):
 
 @csrf_exempt
 def log_devtools(request):
-    """Log when user opens DevTools (detected via console getter trick)"""
+    """Log when user opens DevTools - writes directly to CSV"""
     if request.method == 'POST':
         user_id = request.session.get('user_id')
         if user_id:
-            ExperimentAction.objects.create(
-                user_id=user_id,
-                action_type='devtools_detected',
-                details=request.body.decode('utf-8')
-            )
+            csv_path = os.path.join(settings.BASE_DIR, 'data', 'devtools_log.csv')
+            file_exists = os.path.exists(csv_path)
+            with open(csv_path, 'a', newline='') as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    writer.writerow(['user_id', 'details', 'timestamp'])
+                writer.writerow([user_id, request.body.decode('utf-8'), datetime.datetime.now().isoformat()])
     return JsonResponse({'status': 'ok'})
