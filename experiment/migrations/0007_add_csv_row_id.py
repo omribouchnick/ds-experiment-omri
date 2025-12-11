@@ -15,34 +15,4 @@ class Migration(migrations.Migration):
             name="csv_row_id",
             field=models.IntegerField(blank=True, null=True),
         ),
-        migrations.AddField(
-            model_name="toastresponse",
-            name="age_group",
-            field=models.CharField(blank=True, max_length=50, null=True),
-        ),
-        migrations.AddField(
-            model_name="toastresponse",
-            name="education",
-            field=models.CharField(blank=True, max_length=100, null=True),
-        ),
-        migrations.AddField(
-            model_name="toastresponse",
-            name="gender",
-            field=models.CharField(blank=True, max_length=50, null=True),
-        ),
-        migrations.AddField(
-            model_name="toastresponse",
-            name="numeracy_fractions",
-            field=models.IntegerField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name="toastresponse",
-            name="numeracy_shirt",
-            field=models.IntegerField(blank=True, null=True),
-        ),
-        migrations.AddField(
-            model_name="toastresponse",
-            name="numeracy_useful",
-            field=models.IntegerField(blank=True, null=True),
-        ),
     ]
