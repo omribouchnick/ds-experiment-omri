@@ -4,6 +4,7 @@ from django.db import models
 class ExperimentData(models.Model):
     user_id = models.AutoField(primary_key=True)
     aid = models.CharField(max_length=255)
+    csv_row_id = models.IntegerField(null=True, blank=True)  # Track which CSV row was assigned
     ps = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     human_sensitivity = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     ds_sensitivity = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)

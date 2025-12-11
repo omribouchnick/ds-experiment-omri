@@ -11,29 +11,40 @@ import os
 from .models import *
 
 
-def load_block_trials() -> tuple:
+def load_block_trials(csv_row_id=None) -> tuple:
     """
     Load trial data from CSV for a user.
-    Randomly selects ANY row where used=0, then uses that row's ps/dprimes.
+    - If csv_row_id provided: load that specific row
+    - If not: select unused row, or cycle through if all used
+    
     Returns: (data_dict, row_id, ps, dprime_h, dprime_s) where:
         - data_dict: all trial data organized by blocks
-        - row_id: CSV row ID for marking as used later
+        - row_id: CSV row ID for tracking
         - ps, dprime_h, dprime_s: values from the selected row
     """
     # Scalar to add to all stimuli values (makes task harder without changing probabilities)
     STIMULI_SCALAR = 6.5
     
-    # Load CSV and filter for ANY unused row
+    # Load CSV
     csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
     event_data = pd.read_csv(csv_path)
-    available_rows = event_data[event_data['used'] == 0].copy()
     
-    if len(available_rows) == 0:
-        raise ValueError("No available rows with used=0. All conditions have been used!")
-    
-    # Randomly select one row
-    selected_row = available_rows.sample(n=1).iloc[0]
-    row_id = int(selected_row['id'])
+    if csv_row_id:
+        # Load specific row
+        selected_row = event_data[event_data['id'] == csv_row_id].iloc[0]
+        row_id = int(selected_row['id'])
+    else:
+        # Select new row
+        available_rows = event_data[event_data['used'] == 0].copy()
+        
+        if len(available_rows) > 0:
+            # Has unused rows - select randomly
+            selected_row = available_rows.sample(n=1).iloc[0]
+            row_id = int(selected_row['id'])
+        else:
+            # All rows used - cycle through (select any row randomly)
+            selected_row = event_data.sample(n=1).iloc[0]
+            row_id = int(selected_row['id'])
     
     # Extract ps and dprimes from the selected row
     ps = float(selected_row['ps'])
@@ -69,8 +80,12 @@ def load_block_trials() -> tuple:
         }
     
     # Block 3: Trials 1-100 (with DS shown)
+    # IMPORTANT: Use CSV columns event_t21 to event_t120 (NOT event_t01 to event_t100)
+    # This ensures no overlap with Block 1 (event_t01-10) and Block 2 (event_t11-20)
+    # Mapping: Block 3 trial 1 → CSV column 21, Block 3 trial 100 → CSV column 120
     for trial_num in range(1, 101):
-        t_str = format_trial_num(trial_num)
+        csv_trial_num = trial_num + 20  # Map Block 3 trial 1-100 to CSV columns 21-120
+        t_str = format_trial_num(csv_trial_num)
         data_dict[3][trial_num] = {
             'event': selected_row[f'event_t{t_str}'],
             'stimuli': float(selected_row[f'h_t{t_str}']) + STIMULI_SCALAR,  # Human evidence from CSV + scalar
@@ -81,40 +96,101 @@ def load_block_trials() -> tuple:
     return data_dict, row_id, ps, dprime_h, dprime_s
 
 
-def mark_row_as_used(row_id: int):
-    """Mark a CSV row as used=1 after experiment completion."""
-    csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
-    event_data = pd.read_csv(csv_path)
-    event_data.loc[event_data['id'] == row_id, 'used'] = 1
-    event_data.to_csv(csv_path, index=False)
+def mark_row_as_used(user_id: int):
+    """
+    Mark CSV row as used=1 ONLY when user completes experiment.
+    Called from toast_4 (after questionnaire completion).
+    """
+    experiment_data = ExperimentData.objects.get(user_id=user_id)
+    csv_row_id = experiment_data.csv_row_id
+    
+    if csv_row_id:
+        csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
+        event_data = pd.read_csv(csv_path)
+        event_data.loc[event_data['id'] == csv_row_id, 'used'] = 1
+        
+        # Set isDemo: 1 for old users (demo/pilot), 0 for new users (CloudResearch only)
+        # Check if aid is from CloudResearch (not 'test' or local)
+        aid = experiment_data.aid
+        is_demo = 1 if (aid == 'test' or aid.startswith('local_')) else 0
+        
+        if 'isDemo' not in event_data.columns:
+            event_data['isDemo'] = None
+        event_data.loc[event_data['id'] == csv_row_id, 'isDemo'] = is_demo
+        
+        event_data.to_csv(csv_path, index=False)
 
 
 def landing_page(request):
-    # Load data: randomly select ANY unused row, then use its ps/dprimes
-    events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()
+    # Get aid (keep "test" as-is for local testing - can exclude in analysis)
+    aid = request.GET.get("aid", "test")
     
-    # Store values from the selected CSV row
-    request.session["ps"] = ps
-    request.session["human_sensitivity"] = dprime_h
-    request.session["ds_sensitivity"] = dprime_s
-    request.session["block_scores"] = {}
-    request.session["events_data"] = events_data
-    request.session["csv_row_id"] = csv_row_id  # Store row ID for marking as used later
-    request.session["aid"] = request.GET.get("aid", "test")
-    request.session["experiment_start_time"] = datetime.datetime.now().isoformat()
-
-    # Create an ExperimentData entry for the participant
-    # Note: complete=False by default (only set to True after questionnaire)
-    # If user quits, row stays as used=0 and can be reused
-    if 'user_id' not in request.session:  # Ensure we don't create a new entry every time
-        experiment_data = ExperimentData.objects.create(
-            aid=request.session["aid"],
-            ps=request.session["ps"],
-            human_sensitivity=request.session["human_sensitivity"],
-            ds_sensitivity=request.session["ds_sensitivity"],
-            complete=False  # Explicitly set to False (default, but making it clear)
-        )
+    # Check if user already exists (by aid, not just session!)
+    try:
+        experiment_data = ExperimentData.objects.get(aid=aid)
+        
+        # User exists - check if completed
+        if experiment_data.complete:
+            return redirect('/end/')
+        
+        # Incomplete user - restore their data
+        csv_row_id = experiment_data.csv_row_id
+        if csv_row_id:
+            # Load trials from their assigned row
+            events_data, _, ps, dprime_h, dprime_s = load_block_trials(csv_row_id=csv_row_id)
+        else:
+            # Old record without csv_row_id - assign new row
+            events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()
+            experiment_data.csv_row_id = csv_row_id
+            experiment_data.ps = ps
+            experiment_data.human_sensitivity = dprime_h
+            experiment_data.ds_sensitivity = dprime_s
+            experiment_data.save()
+        
+        # Restore session
         request.session["user_id"] = experiment_data.user_id
+        request.session["aid"] = aid
+        request.session["ps"] = float(ps)
+        request.session["human_sensitivity"] = float(dprime_h)
+        request.session["ds_sensitivity"] = float(dprime_s)
+        request.session["events_data"] = events_data
+        request.session["csv_row_id"] = csv_row_id
+        request.session["block_scores"] = request.session.get("block_scores", {})
+        if "experiment_start_time" not in request.session:
+            request.session["experiment_start_time"] = datetime.datetime.now().isoformat()
+        
+    except ExperimentData.DoesNotExist:
+        # New user - assign CSV row
+        events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()
+        
+        # Create record (use get_or_create to prevent race condition)
+        experiment_data, created = ExperimentData.objects.get_or_create(
+            aid=aid,
+            defaults={
+                'ps': ps,
+                'human_sensitivity': dprime_h,
+                'ds_sensitivity': dprime_s,
+                'csv_row_id': csv_row_id,
+                'complete': False
+            }
+        )
+        
+        # If not created, someone else created it first - use their data
+        if not created:
+            csv_row_id = experiment_data.csv_row_id
+            events_data, _, ps, dprime_h, dprime_s = load_block_trials(csv_row_id=csv_row_id)
+        
+        # Store in session
+        request.session["user_id"] = experiment_data.user_id
+        request.session["aid"] = aid
+        request.session["ps"] = float(ps)
+        request.session["human_sensitivity"] = float(dprime_h)
+        request.session["ds_sensitivity"] = float(dprime_s)
+        request.session["events_data"] = events_data
+        request.session["csv_row_id"] = csv_row_id
+        request.session["block_scores"] = {}
+        request.session["experiment_start_time"] = datetime.datetime.now().isoformat()
+    
     if request.method == "POST":
         if request.POST['Continue'] == 'continue':
             return redirect('/consent_form/')
@@ -431,9 +507,8 @@ def toast_4(request):
             education=request.POST.get('education')
         )
         
-        # Mark CSV row as used only after questionnaire completion
-        if 'csv_row_id' in request.session:
-            mark_row_as_used(request.session['csv_row_id'])
+        # Mark CSV row as used ONLY when user completes experiment
+        mark_row_as_used(experiment_data.user_id)
 
         return redirect('/end/')
 
