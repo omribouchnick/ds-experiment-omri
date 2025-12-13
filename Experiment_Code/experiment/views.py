@@ -26,7 +26,7 @@ def load_block_trials(csv_row_id=None) -> tuple:
     STIMULI_SCALAR = 6.5
     
     # Load CSV
-    csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
     event_data = pd.read_csv(csv_path)
     
     if csv_row_id:
@@ -105,7 +105,7 @@ def mark_row_as_used(user_id: int):
     csv_row_id = experiment_data.csv_row_id
     
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "data", "conditions_experiment_3ps_11x11_120_A.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
         event_data = pd.read_csv(csv_path)
         event_data.loc[event_data['id'] == csv_row_id, 'used'] = 1
         
