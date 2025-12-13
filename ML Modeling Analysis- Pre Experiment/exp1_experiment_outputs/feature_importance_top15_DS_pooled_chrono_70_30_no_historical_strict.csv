@@ -1,0 +1,10 @@
+feature,importance
+p_signal,0.48419052
+ds_recommends_signal,0.42377567
+system_d,0.061403297
+dependency_num,0.014532351
+block,0.006090186
+purchase_ds_block_num,0.005555234
+trial,0.004452776
+is_first_trial,0.0
+is_first_block,0.0

@@ -1,0 +1,5 @@
+[full] Train: first trial in some blocks has non-NaN rolling features. | Test: first trial in some blocks has non-NaN rolling features.
+[no_stim] Train: first trial in some blocks has non-NaN rolling features. | Test: first trial in some blocks has non-NaN rolling features.
+[no_stim_hard] Train: first trial in some blocks has non-NaN rolling features. | Test: first trial in some blocks has non-NaN rolling features.
+[no_ds] Train: first trial in some blocks has non-NaN rolling features. | Test: first trial in some blocks has non-NaN rolling features.
+[no_stim_and_ds] Train: first trial in some blocks has non-NaN rolling features. | Test: first trial in some blocks has non-NaN rolling features.

@@ -1,0 +1,17 @@
+user_id,usefulness,reliability,trust,confidence,satisfaction,predictability,understandability,surprised,comfortable,numeracy_fractions,numeracy_shirt,numeracy_useful,age_group,gender,education
+34,6,5,6,6,4,5,4,6,5,5,6,5,41-55,female,some_high_school
+36,7,6,7,7,5,5,6,6,5,5,5,5,41-55,female,bachelor
+31,6,6,2,2,2,5,4,3,4,3,3,4,41-55,female,bachelor
+38,4,5,5,5,5,5,5,5,5,6,6,5,older_than_70,female,bachelor
+37,3,3,3,3,3,3,3,3,3,2,2,2,26-34,male,high_school
+32,7,6,6,6,7,5,6,5,5,3,4,6,56-70,male,trade_technical
+42,2,2,2,2,1,1,1,1,1,2,2,2,35-40,female,master
+44,5,5,7,7,4,5,5,5,3,4,4,4,41-55,female,some_high_school
+33,4,5,6,7,6,6,6,6,6,5,5,5,35-40,female,some_college
+49,4,5,6,6,5,5,6,5,5,5,5,5,older_than_70,male,bachelor
+46,5,5,5,4,5,5,5,5,5,2,5,5,older_than_70,female,trade_technical
+45,6,6,6,2,6,3,4,2,5,4,5,6,older_than_70,female,master
+50,7,7,7,7,7,7,7,7,7,6,6,6,56-70,female,bachelor
+48,5,6,6,6,6,6,6,6,6,5,5,5,18-25,male,high_school
+47,4,4,4,4,4,3,3,4,4,2,5,5,41-55,male,some_college
+35,3,4,5,4,4,5,4,4,5,2,5,4,older_than_70,female,some_college

@@ -1,0 +1,16 @@
+feature,importance
+ds_recommends_signal,0.4231081
+signal_rate_rolling_1,0.028084463
+tp_rate_rolling_3,0.023122147
+user_tp_given_ds_no_alarm_rate_rolling_1,0.0228715
+trial,0.02024376
+fp_rate_rolling_1,0.019991472
+tp_rate_rolling_7,0.018414237
+tp_rate_rolling_1,0.018403402
+dependency_num,0.017221564
+signal_rate_rolling_40,0.015072292
+block,0.01504911
+user_ds_agreement_rate_rolling_40,0.0143313855
+tp_rate_rolling_21,0.0142972
+ds_tp_rate_rolling_7,0.0132743465
+ds_fp_rate_rolling_40,0.012852379

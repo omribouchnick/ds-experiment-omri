@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Instructions</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Global styling */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        /* Container styling (same as landing page) */
+        .container {
+            width: 90%;
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 24px;
+        }
+
+        p {
+            font-size: 18px;
+            margin: 15px 0;
+            text-align: justify;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        ul li p {
+            font-size: 18px;
+            margin: 8px 0;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .button {
+            flex: 1;
+            min-width: 120px;
+            padding: 15px;
+            background-color: #ADD8E6;
+            color: white;
+            text-align: center;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .button:hover {
+            background-color: #87CEEB;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Responsive design */
+        @media only screen and (max-width: 768px) {
+            h2 {
+                font-size: 22px;
+            }
+
+            p, ul li p {
+                font-size: 16px;
+            }
+
+            .button {
+                font-size: 16px;
+                padding: 12px;
+            }
+        }
+
+        @media only screen and (max-width: 480px) {
+            .container {
+                margin: 20px;
+                padding: 15px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+
+            p, ul li p {
+                font-size: 14px;
+            }
+
+            .button {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+<form method="POST">
+    {% csrf_token %}
+    <div class="container">
+        {% if screen == 1 %}
+            <h2>Welcome to the Experiment</h2>
+            <p>Assume that you are a mechanic in an autonomous-car factory.</p>
+            <p>Your task it to monitor autonomous car modules and to decide weather a module needs to be inspected manually or not.</p>
+            <p>Please read each instruction screen carefully. When you're ready, click "Next" to proceed to the next screen.</p>
+            <div class="button-container">
+                <button type="submit" name="Continue" value="continue" class="button">Next</button>
+            </div>
+        {% elif screen == 2 %}
+            <h2>Instructions</h2>
+            <p>The module's condition is represented by a number. The higher the number, the more likely an intervention is needed.</p>
+            <p>Since the number represents the <b>probability</b> that the module needs an intervention, the threshold for an intervention might change from module to module.</p>
+            <p>You will now need to classify 20 events, each referring to a specific car module.</p>
+            <p>Decide whether the module needs an intervention based on the provided number (stimulus).</p>
+            <div>
+                <center><img src="/static/images/autocar_full_output.png" alt="Image"></center>
+            </div>
+            <div class="button-container">
+                <button type="submit" name="Continue" value="back" class="button">Back</button>
+                <button type="submit" name="Continue" value="continue" class="button">Next</button>
+            </div>
+        {% elif screen == 3 %}
+            <h2>Instructions</h2>
+            <p>After each decision, you will see whether your decision was correct or incorrect. Your points will be updated accordingly.</p>
+            <ul>
+                <li><p>If an intervention was needed and you identified that correctly: +{{ v_tp }} point. If you missed it: -{{ v_fn }} points.</p></li>
+                <li><p>If an intervention was not needed and you identified that correctly: +{{ v_tn }} points. If you missed it: -{{ v_fp }} points.</p></li>
+            </ul>
+            <p>The points will be deducted from or added to your initial budget of 30 points.</p>
+            <div class="button-container">
+                <button type="submit" name="Continue" value="back" class="button">Back</button>
+                <button type="submit" name="Continue" value="start_block_1" class="button">Start the Experiment</button>
+            </div>
+        {% elif screen == 4 %}
+            <h2>Instructions</h2>
+            <p>In this block, you will again classify 10 car module events based on a number indicating probability of needing manual inspection.</p>
+            <p>You will also receive output from a <b>Decision Support (DS) System</b> which provides two types of recommendations:</p>
+            <ul>
+                <li><p><b>"Check"</b> (red) = system recommends flagging the module for manual inspection</p></li>
+                <li><p><b>"Skip"</b> (green) = system recommends skipping inspection</p></li>
+            </ul>
+            <div class="button-container">
+                <button type="submit" name="Continue" value="continue" class="button">Next</button>
+            </div>
+        {% elif screen == 5 %}
+            <h2>Instructions</h2>
+            <div class="div_text">
+                <p>The DS recommendation will be displayed on a rectangle,
+                    where a red rectangle indicates a "Check" recommendation and a green rectangle indicates a "Skip" recommendation.</p>
+                <p>Note that the DS system is not perfect, and its recommendations are not always correct.</p>
+                <p>Remember, after each decision you make, you will see a message that informs you whether your decision
+                was correct or wrong, and your points will be updated accordingly.</p>
+                <ul style="margin-left: 0; padding-left: 20px;" >
+                    <li> <p> If an intervention was needed, and you identified that correctly,
+                          you get {{ v_tp }} point, but if you missed it you lose {{ v_fn }} points.</p></li>
+                    <li><p> If an intervention was not needed, and you identified that correctly,
+                      you get {{ v_tn }} points, but if you missed it you lose {{ v_fp }} points.</p></li>
+                </ul>
+            </div>
+            <br><br>
+            <div class="div_fig">
+                  <center>
+                    <img src="/static/images/auto_car_output.png" width="300px" height="auto" alt="Image">
+                  </center>
+            </div>
+            <div class="button-container">
+                <button type="submit" name="Continue" value="back" class="button">Back</button>
+                <button type="submit" name="Continue" value="start_block_2" class="button">Continue the Experiment</button>
+            </div>
+        {% elif screen == 6 %}
+            <h2>Instructions</h2>
+            <p>Now, you will have to classify an additional block with 100 car module events.</p>
+            <p>The <b>Decision Support (DS) System</b> will be available for all trials in this block,
+                just like in the previous block.</p>
+            <p>Your initial budget at each block is 30 points.</p>
+            </p>
+            <p>Remember, after each decision you make, you will see a message that informs you whether your decision
+            was correct or wrong, and your points will be updated accordingly.</p>
+            <ul style="margin-left: 0; padding-left: 20px;" >
+                <li> <p> If an intervention was needed, and you identified that correctly,
+                      you get {{ v_tp }} point, but if you missed it you lose {{ v_fn }} points.</p></li>
+                <li><p> If an intervention was not needed, and you identified that correctly,
+                  you get {{ v_tn }} points, but if you missed it you lose {{ v_fp }} points.</p></li>
+            </ul>
+            <div class="button-container">
+                <button type="submit" name="Continue" value="pd_screen" class="button">Next</button>
+            </div>
+        {% else %}
+            <p>Invalid screen number.</p>
+        {% endif %}
+</form>
+</body>
+</html>

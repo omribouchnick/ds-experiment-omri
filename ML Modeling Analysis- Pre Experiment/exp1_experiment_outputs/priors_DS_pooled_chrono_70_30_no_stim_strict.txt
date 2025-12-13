@@ -1,0 +1,2 @@
+user S-rate: train=0.325, test=0.359
+event_type S-rate: train=0.293, test=0.316

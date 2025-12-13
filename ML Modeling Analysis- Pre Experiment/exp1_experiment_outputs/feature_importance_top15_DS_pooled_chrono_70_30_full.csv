@@ -1,0 +1,16 @@
+feature,importance
+p_signal,0.45187414
+ds_recommends_signal,0.113824256
+system_d,0.06242499
+user_tp_given_system_signal_rate_rolling_40,0.028713286
+user_tp_given_system_noise_rate_rolling_7,0.020772355
+user_tp_given_system_noise_rate_rolling_40,0.017120706
+user_tp_given_ds_alarm_rate_rolling_40,0.016356727
+system_fp_rate_rolling_21,0.012061446
+dependency_num,0.00933814
+user_tp_given_system_signal_rate_rolling_3,0.009116856
+user_tp_given_ds_no_alarm_rate_rolling_3,0.00882988
+tp_rate_rolling_40,0.00772936
+user_ds_agreement_rate_rolling_40,0.007701532
+user_tp_given_ds_no_alarm_rate_rolling_21,0.007636683
+system_tp_rate_rolling_3,0.0071713086

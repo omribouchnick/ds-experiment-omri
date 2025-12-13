@@ -1,0 +1,16 @@
+feature,importance
+p_signal,0.50406104
+user_tp_given_system_signal_rate_rolling_40,0.044229552
+user_tp_given_system_noise_rate_rolling_40,0.028362254
+user_tp_given_system_signal_rate_rolling_21,0.025425484
+fp_rate_rolling_21,0.021054024
+user_ds_agreement_rate_rolling_40,0.020568116
+user_tp_given_system_noise_rate_rolling_21,0.017909681
+fp_rate_rolling_40,0.012285763
+system_d,0.011500169
+tp_rate_rolling_14,0.011056328
+ds_tp_rate_rolling_7,0.010897777
+system_fp_rate_rolling_14,0.010831072
+user_tp_given_system_signal_rate_rolling_14,0.010158303
+p_signal_mean_rolling_3,0.009331571
+system_tp_rate_rolling_40,0.008934319

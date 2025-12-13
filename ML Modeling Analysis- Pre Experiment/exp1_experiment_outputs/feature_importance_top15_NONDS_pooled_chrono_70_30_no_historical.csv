@@ -1,0 +1,9 @@
+feature,importance
+p_signal,0.95484537
+system_d,0.01971315
+trial,0.009320694
+block,0.008281754
+purchase_ds_block_num,0.007839043
+is_first_trial,0.0
+is_first_block,0.0
+dependency_num,0.0

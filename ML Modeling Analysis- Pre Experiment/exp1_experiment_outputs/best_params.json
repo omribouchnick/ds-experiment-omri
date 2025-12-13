@@ -1,0 +1,320 @@
+{
+  "DS|pooled_chrono_70_30|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|no_stim": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|no_ds": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "DS|pooled_chrono_70_30|no_stim_and_ds": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|no_stim_hard": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 0.8
+  },
+  "DS|holdout_ids_70_30|no_stim": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|no_ds": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|no_stim_and_ds": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|no_stim_hard": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30|no_stim": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30|no_stim_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "NONDS|pooled_chrono_70_30|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|holdout_ids_70_30|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|holdout_ids_70_30|no_stim": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "NONDS|holdout_ids_70_30|no_stim_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "NONDS|holdout_ids_70_30|no_historical": {
+    "learning_rate": 0.2,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|strict|full": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|strict|no_stim": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|strict|no_ds": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "DS|pooled_chrono_70_30|strict|no_stim_and_ds": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|strict|no_stim_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30|strict|no_ds_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "DS|pooled_chrono_70_30|strict|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30_online|online|full": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30_online|online|no_stim": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30_online|online|no_ds": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "DS|pooled_chrono_70_30_online|online|no_stim_and_ds": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30_online|online|no_stim_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|pooled_chrono_70_30_online|online|no_ds_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "DS|pooled_chrono_70_30_online|online|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|strict|full": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|strict|no_stim": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|strict|no_ds": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|strict|no_stim_and_ds": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|strict|no_stim_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "DS|holdout_ids_70_30|strict|no_ds_hard": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "DS|holdout_ids_70_30|strict|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "NONDS|pooled_chrono_70_30|strict|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30|strict|no_stim": {
+    "learning_rate": 0.2,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30|strict|no_stim_hard": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "NONDS|pooled_chrono_70_30|strict|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30_online|online|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30_online|online|no_stim": {
+    "learning_rate": 0.2,
+    "max_depth": 3,
+    "n_estimators": 200,
+    "subsample": 0.8
+  },
+  "NONDS|pooled_chrono_70_30_online|online|no_stim_hard": {
+    "learning_rate": 0.2,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "NONDS|pooled_chrono_70_30_online|online|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|holdout_ids_70_30|strict|full": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 1.0
+  },
+  "NONDS|holdout_ids_70_30|strict|no_stim": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 100,
+    "subsample": 0.8
+  },
+  "NONDS|holdout_ids_70_30|strict|no_stim_hard": {
+    "learning_rate": 0.1,
+    "max_depth": 6,
+    "n_estimators": 200,
+    "subsample": 1.0
+  },
+  "NONDS|holdout_ids_70_30|strict|no_historical": {
+    "learning_rate": 0.1,
+    "max_depth": 3,
+    "n_estimators": 100,
+    "subsample": 0.8
+  }
+}
