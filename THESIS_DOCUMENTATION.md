@@ -334,7 +334,7 @@ ds-experiment-omri/
 ├── data/
 │   ├── conditions_experiment_3ps_11x11_120_A.csv  # Main stimulus file
 │   ├── conditions_experiment_3ps_11x11_120_A-old_baysian_ds.csv  # Backup
-│   ├── 0912/  # Snapshot folder with exports
+│   ├── old_data_0912/  # Backup folder with old experiment exports
 │   │   ├── db.sqlite3
 │   │   ├── experiment_data.csv
 │   │   ├── experiment_actions.csv

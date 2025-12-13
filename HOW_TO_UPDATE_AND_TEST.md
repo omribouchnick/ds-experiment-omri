@@ -17,14 +17,14 @@
 2. **Run cells in order:**
    - **Cell 1**: Imports (click Run)
    - **Cell 2**: Helper functions (click Run)
-   - **Cell 4**: Data loading (click Run) - loads data from `data/0912/db.sqlite3`
+   - **Cell 4**: Data loading (click Run) - loads data from `data/old_data_0912/db.sqlite3`
    - **Cell 5**: Update csv_row_id (click Run) - updates the database
    - **Cell 6**: Validation (click Run) - checks everything
    - **Cell 7**: Verification (click Run) - shows 2 users comparison
 
 3. **What Cell 5 does:**
-   - Reads `data/0912/user_csv_row_mapping.csv`
-   - Updates `data/0912/db.sqlite3` with `csv_row_id` for all 52 users
+   - Reads `data/old_data_0912/user_csv_row_mapping.csv`
+   - Updates `data/old_data_0912/db.sqlite3` with `csv_row_id` for all 52 users
    - Updates `ps`, `dprime_h`, `dprime_s` from correct CSV row
 
 4. **After Cell 5 runs:**
@@ -43,10 +43,10 @@
 1. **Upload the updated database:**
    ```bash
    # From your local computer
-   scp data/0912/db.sqlite3 your_username@ssh.pythonanywhere.com:~/ds-experiment-omri/data/0912/
+   scp data/old_data_0912/db.sqlite3 your_username@ssh.pythonanywhere.com:~/ds-experiment-omri/data/old_data_0912/
    ```
 
-   OR use PythonAnywhere's Files tab to upload `data/0912/db.sqlite3`
+   OR use PythonAnywhere's Files tab to upload `data/old_data_0912/db.sqlite3`
 
 2. **Verify on PythonAnywhere:**
    ```bash
@@ -134,7 +134,7 @@
 1. **Download updated database from PythonAnywhere:**
    ```bash
    # Download via Files tab or:
-   scp your_username@ssh.pythonanywhere.com:~/ds-experiment-omri/data/0912/db.sqlite3 data/0912/
+   scp your_username@ssh.pythonanywhere.com:~/ds-experiment-omri/data/old_data_0912/db.sqlite3 data/old_data_0912/
    ```
 
 2. **Run notebook analysis:**
