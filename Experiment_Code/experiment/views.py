@@ -34,15 +34,29 @@ def load_block_trials(csv_row_id=None) -> tuple:
         selected_row = event_data[event_data['id'] == csv_row_id].iloc[0]
         row_id = int(selected_row['id'])
     else:
-        # Select new row
-        available_rows = event_data[event_data['used'] == 0].copy()
+        # Select new row with 3-tier priority:
+        # 1. Fresh rows (used=0) - preferred
+        # 2. In-progress rows (used=0.5) - if fresh < 5
+        # 3. Any row - if all completed (used=1)
         
-        if len(available_rows) > 0:
-            # Has unused rows - select randomly
+        fresh_rows = event_data[event_data['used'] == 0].copy()
+        in_progress_rows = event_data[event_data['used'] == 0.5].copy()
+        
+        if len(fresh_rows) >= 5:
+            # Plenty of fresh rows - use those
+            selected_row = fresh_rows.sample(n=1).iloc[0]
+            row_id = int(selected_row['id'])
+        elif len(fresh_rows) > 0:
+            # Few fresh rows left (< 5) - include in_progress as fallback
+            available_rows = pd.concat([fresh_rows, in_progress_rows])
             selected_row = available_rows.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
+        elif len(in_progress_rows) > 0:
+            # No fresh rows, but some in_progress - use those
+            selected_row = in_progress_rows.sample(n=1).iloc[0]
+            row_id = int(selected_row['id'])
         else:
-            # All rows used - cycle through (select any row randomly)
+            # All rows completed (used=1) - recycle any row
             selected_row = event_data.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
     
@@ -96,9 +110,22 @@ def load_block_trials(csv_row_id=None) -> tuple:
     return data_dict, row_id, ps, dprime_h, dprime_s
 
 
+def mark_row_in_progress(csv_row_id: int):
+    """
+    Mark CSV row as used=0.5 when user STARTS experiment.
+    This prevents race conditions where 2 users get the same row.
+    Called from landing_page when new user is created.
+    """
+    if csv_row_id:
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+        event_data = pd.read_csv(csv_path)
+        event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0.5
+        event_data.to_csv(csv_path, index=False)
+
+
 def mark_row_as_used(user_id: int):
     """
-    Mark CSV row as used=1 ONLY when user completes experiment.
+    Mark CSV row as used=1 when user COMPLETES experiment.
     Called from toast_4 (after questionnaire completion).
     """
     experiment_data = ExperimentData.objects.get(user_id=user_id)
@@ -119,6 +146,22 @@ def mark_row_as_used(user_id: int):
         event_data.loc[event_data['id'] == csv_row_id, 'isDemo'] = is_demo
         
         event_data.to_csv(csv_path, index=False)
+
+
+def mark_row_as_available(csv_row_id: int):
+    """
+    Mark CSV row as used=0 when user QUITS/ABANDONS experiment.
+    This makes the row available for future users.
+    Called when incomplete user is detected.
+    """
+    if csv_row_id:
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+        event_data = pd.read_csv(csv_path)
+        # Only reset if it's in_progress (0.5), not if already completed (1)
+        current_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values[0]
+        if current_value == 0.5:
+            event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
+            event_data.to_csv(csv_path, index=False)
 
 
 def landing_page(request):
@@ -163,6 +206,9 @@ def landing_page(request):
         # New user - assign CSV row
         events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()
         
+        # Mark row as in_progress (0.5) IMMEDIATELY to prevent race condition
+        mark_row_in_progress(csv_row_id)
+        
         # Create record (use get_or_create to prevent race condition)
         experiment_data, created = ExperimentData.objects.get_or_create(
             aid=aid,
@@ -177,6 +223,8 @@ def landing_page(request):
         
         # If not created, someone else created it first - use their data
         if not created:
+            # Reset our row back to available since we won't use it
+            mark_row_as_available(csv_row_id)
             csv_row_id = experiment_data.csv_row_id
             events_data, _, ps, dprime_h, dprime_s = load_block_trials(csv_row_id=csv_row_id)
         
@@ -336,11 +384,15 @@ def end(request):
         participant.complete = True
         request.session["complete"] = True
     else:
-        # Incomplete user - mark as incomplete and redirect directly to ThankYouTerm
+        # Incomplete user - mark as incomplete and reset CSV row to available
         participant.complete = False
         request.session["complete"] = False
         participant.end_time = datetime.datetime.now().isoformat()
         participant.save()
+        
+        # Reset CSV row from 0.5 back to 0 so it can be reused
+        if participant.csv_row_id:
+            mark_row_as_available(participant.csv_row_id)
         
         aid = request.session.get("aid", "test")
         return redirect(f'https://app.cloudresearch.com/Router/ThankYouTerm?aid={aid}')

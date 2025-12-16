@@ -1,155 +1,160 @@
 #!/bin/bash
-# Show last 3 users with all relevant columns and status
+# Show last 3 users with all relevant columns, CSV matching, and status
 # Usage: bash check_last_3_users_status.sh
 
-cd ~/ds-experiment-omri
-source venv/bin/activate
-
-python manage.py shell << 'PYEOF'
-from experiment.models import ExperimentData, ExperimentAction, TOASTResponse
-from django.db.models import Count
+cd ~/ds-experiment-omri && python3 << 'EOF'
+import sqlite3
 import pandas as pd
-import os
+
+conn = sqlite3.connect('db.sqlite3')
 
 print("=" * 80)
-print("LAST 3 USERS - COMPLETE STATUS AND ALL COLUMNS")
+print("📊 LAST 3 USERS - COMPLETE STATUS CHECK")
 print("=" * 80)
 
 # Load conditions CSV
-conditions_file = 'data/conditions_experiment_3ps_11x11_120_A.csv'
-if not os.path.exists(conditions_file):
-    conditions_file = 'data/old_data_0912/conditions_experiment_3ps_11x11_120_A.csv'
-
 try:
-    conditions_df = pd.read_csv(conditions_file)
+    csv_df = pd.read_csv('DATA/conditions_experiment_3ps_11x11_120_A.csv')
+    print(f"✅ CSV loaded: {len(csv_df)} rows")
 except Exception as e:
-    print(f"⚠️  Warning: Could not load CSV file: {e}")
-    conditions_df = None
+    print(f"❌ Could not load CSV: {e}")
+    csv_df = None
 
-# Get last 3 users ordered by user_id (most recent first)
-last_3_users = ExperimentData.objects.order_by('-user_id')[:3]
+# Get last 3 users
+users = pd.read_sql_query("""
+    SELECT user_id, aid, csv_row_id, ps, human_sensitivity, ds_sensitivity, 
+           complete, start_time, end_time
+    FROM experiment_experimentdata
+    ORDER BY user_id DESC LIMIT 3
+""", conn)
 
-if not last_3_users:
-    print("❌ No users found in database")
+if len(users) == 0:
+    print("❌ No users found")
+    conn.close()
     exit()
 
-print(f"\nFound {len(last_3_users)} users\n")
+print(f"📊 Total users in DB: {pd.read_sql_query('SELECT COUNT(*) as c FROM experiment_experimentdata', conn).iloc[0]['c']}")
+print()
 
-for user in last_3_users:
-    # Get related data counts
-    action_count = ExperimentAction.objects.filter(user_id=user.user_id).count()
-    has_toast = TOASTResponse.objects.filter(user_id=user.user_id).exists()
-    
-    # Status indicator
-    status_icon = "✅ COMPLETE" if user.complete else "❌ INCOMPLETE"
+for _, u in users.iterrows():
+    status = "✅ COMPLETE" if u['complete'] else "❌ INCOMPLETE"
     
     print("=" * 80)
-    print(f"USER ID: {user.user_id} - {status_icon}")
+    print(f"USER ID: {u['user_id']} - {status}")
     print("=" * 80)
     
-    # All relevant columns from ExperimentData
-    print(f"\n📋 Basic Information:")
-    print(f"   user_id:           {user.user_id}")
-    print(f"   aid:               {user.aid}")
-    print(f"   csv_row_id:        {user.csv_row_id if user.csv_row_id is not None else 'N/A'}")
-    print(f"   complete:          {user.complete}")
-    print(f"   start_time:        {user.start_time}")
-    print(f"   end_time:          {user.end_time if user.end_time else 'N/A'}")
+    # Basic info
+    print(f"\n📋 BASIC INFO:")
+    print(f"   AID:              {u['aid']}")
+    print(f"   CSV Row ID:       {u['csv_row_id']}")
+    print(f"   Start:            {u['start_time']}")
+    print(f"   End:              {u['end_time'] if u['end_time'] else 'N/A'}")
     
-    print(f"\n📊 Experiment Parameters:")
-    print(f"   ps:                {user.ps if user.ps is not None else 'N/A'}")
-    print(f"   human_sensitivity: {user.human_sensitivity if user.human_sensitivity is not None else 'N/A'}")
-    print(f"   ds_sensitivity:    {user.ds_sensitivity if user.ds_sensitivity is not None else 'N/A'}")
+    # Parameters from DB
+    print(f"\n📊 EXPERIMENT PARAMETERS (from DB):")
+    print(f"   ps:               {u['ps']}")
+    print(f"   d'_human:         {u['human_sensitivity']}")
+    print(f"   d'_DS:            {u['ds_sensitivity']}")
     
-    # Check CSV row data if available
-    if conditions_df is not None and user.csv_row_id is not None:
+    # Compare with CSV
+    if csv_df is not None and u['csv_row_id'] is not None:
         try:
-            csv_row = conditions_df[conditions_df['id'] == user.csv_row_id]
-            if len(csv_row) > 0:
-                csv_row = csv_row.iloc[0]
-                
-                print(f"\n📋 CSV Row Information (row_id={user.csv_row_id}):")
-                print(f"   ps:                {csv_row['ps']}")
-                print(f"   dprime_h:          {csv_row['dprime_h']}")
-                print(f"   dprime_s:          {csv_row['dprime_s']}")
-                print(f"   used:              {csv_row['used']}")
-                print(f"   isDemo:            {csv_row.get('isDemo', 'N/A')}")
-                
-                # Database vs CSV comparison
-                print(f"\n🔍 Database vs CSV Comparison:")
-                ps_match = "✅" if user.ps is not None and float(user.ps) == float(csv_row['ps']) else "❌"
-                dprime_h_match = "✅" if user.human_sensitivity is not None and float(user.human_sensitivity) == float(csv_row['dprime_h']) else "❌"
-                dprime_s_match = "✅" if user.ds_sensitivity is not None and float(user.ds_sensitivity) == float(csv_row['dprime_s']) else "❌"
-                
-                print(f"   ps:                DB={user.ps}, CSV={csv_row['ps']} {ps_match}")
-                print(f"   dprime_h:          DB={user.human_sensitivity}, CSV={csv_row['dprime_h']} {dprime_h_match}")
-                print(f"   dprime_s:          DB={user.ds_sensitivity}, CSV={csv_row['dprime_s']} {dprime_s_match}")
-                
-                # Check used and isDemo status
-                print(f"\n🔍 CSV Row Status Checks:")
-                if user.complete:
-                    used_ok = "✅" if csv_row['used'] == 1 else "❌"
-                    print(f"   used:              {csv_row['used']} {used_ok} (should be 1 when complete)")
-                    
-                    # Check isDemo logic (matches views.py: only 'test' or 'local_' prefix, not 'test_')
-                    expected_is_demo = 1 if (user.aid == 'test' or str(user.aid).startswith('local_')) else 0
-                    actual_is_demo = csv_row.get('isDemo')
-                    if pd.isna(actual_is_demo):
-                        is_demo_ok = "❌ NOT SET"
-                    else:
-                        is_demo_ok = "✅" if actual_is_demo == expected_is_demo else f"❌ (expected {expected_is_demo}, got {actual_is_demo})"
-                    print(f"   isDemo:            {actual_is_demo} {is_demo_ok} (expected {expected_is_demo} for aid='{user.aid}')")
-                else:
-                    used_ok = "✅" if csv_row['used'] == 0 else "⚠️"
-                    print(f"   used:              {csv_row['used']} {used_ok} (should be 0 if not complete)")
-                    print(f"   isDemo:            {csv_row.get('isDemo', 'N/A')} (will be set when user completes)")
+            csv_row = csv_df[csv_df['id'] == u['csv_row_id']].iloc[0]
+            
+            print(f"\n🔍 CSV MATCHING (Row {u['csv_row_id']}):")
+            
+            # Parameter matching
+            ps_match = "✅" if u['ps'] is not None and float(u['ps']) == float(csv_row['ps']) else "❌"
+            dh_match = "✅" if u['human_sensitivity'] is not None and float(u['human_sensitivity']) == float(csv_row['dprime_h']) else "❌"
+            ds_match = "✅" if u['ds_sensitivity'] is not None and float(u['ds_sensitivity']) == float(csv_row['dprime_s']) else "❌"
+            
+            print(f"   ps:       DB={u['ps']}, CSV={csv_row['ps']} {ps_match}")
+            print(f"   d'_human: DB={u['human_sensitivity']}, CSV={csv_row['dprime_h']} {dh_match}")
+            print(f"   d'_DS:    DB={u['ds_sensitivity']}, CSV={csv_row['dprime_s']} {ds_match}")
+            
+            # CSV status
+            print(f"\n📋 CSV ROW STATUS:")
+            print(f"   used:     {csv_row['used']}", end="")
+            if u['complete']:
+                print(f" {'✅' if csv_row['used'] == 1 else '❌ (should be 1)'}")
+            else:
+                print(f" {'✅' if csv_row['used'] == 0 else '⚠️ (should be 0)'}")
+            
+            # isDemo check
+            expected_demo = 1 if (u['aid'] == 'test' or str(u['aid']).startswith('local_')) else 0
+            actual_demo = csv_row.get('isDemo', None)
+            if pd.isna(actual_demo):
+                demo_status = "❌ NOT SET"
+            elif actual_demo == expected_demo:
+                demo_status = "✅"
+            else:
+                demo_status = f"❌ (expected {expected_demo})"
+            print(f"   isDemo:   {actual_demo} {demo_status} (aid='{u['aid']}')")
+            
         except Exception as e:
-            print(f"\n⚠️  Warning: Could not check CSV row data: {e}")
+            print(f"   ⚠️ Error checking CSV: {e}")
     
-    print(f"\n📈 Progress:")
-    print(f"   Total Actions:     {action_count}")
-    print(f"   TOAST Response:    {'✅ Yes' if has_toast else '❌ No'}")
+    # Actions - correct column names
+    actions = pd.read_sql_query(f"""
+        SELECT block_number, trial_number, dss_judgment, classification_decision, correct_classification
+        FROM experiment_experimentaction
+        WHERE user_id_id = {u['user_id']}
+        ORDER BY block_number, trial_number
+    """, conn)
     
-    # Calculate duration if end_time exists
-    if user.end_time and user.start_time:
-        duration = user.end_time - user.start_time
-        hours = duration.total_seconds() / 3600
-        minutes = (duration.total_seconds() % 3600) / 60
-        print(f"   Duration:          {int(hours)}h {int(minutes)}m")
+    print(f"\n📈 PROGRESS:")
+    print(f"   Total Actions: {len(actions)}")
     
-    # Show TOAST details if exists
-    if has_toast:
-        toast = TOASTResponse.objects.get(user_id=user.user_id)
-        print(f"\n📋 TOAST Questionnaire:")
-        print(f"   Usefulness:        {toast.usefulness if toast.usefulness is not None else 'N/A'}")
-        print(f"   Reliability:       {toast.reliability if toast.reliability is not None else 'N/A'}")
-        print(f"   Trust:             {toast.trust if toast.trust is not None else 'N/A'}")
-        print(f"   Confidence:        {toast.confidence if toast.confidence is not None else 'N/A'}")
-        print(f"   Satisfaction:      {toast.satisfaction if toast.satisfaction is not None else 'N/A'}")
-        print(f"   Predictability:    {toast.predictability if toast.predictability is not None else 'N/A'}")
-        print(f"   Understandability: {toast.understandability if toast.understandability is not None else 'N/A'}")
-        print(f"   Surprised:         {toast.surprised if toast.surprised is not None else 'N/A'}")
-        print(f"   Comfortable:       {toast.comfortable if toast.comfortable is not None else 'N/A'}")
-        print(f"   Age Group:         {toast.age_group if toast.age_group else 'N/A'}")
-        print(f"   Gender:            {toast.gender if toast.gender else 'N/A'}")
-        print(f"   Education:         {toast.education if toast.education else 'N/A'}")
+    if len(actions) > 0:
+        for block in [1, 2, 3]:
+            ba = actions[actions['block_number'] == block]
+            if len(ba) > 0:
+                correct = (ba['classification_decision'] == ba['correct_classification']).sum()
+                agreed = (ba['classification_decision'] == ba['dss_judgment']).sum()
+                print(f"   Block {block}: {len(ba)} trials, {correct}/{len(ba)} correct ({100*correct/len(ba):.0f}%), agreed: {agreed}/{len(ba)}")
     
-    # Action breakdown by block
-    if action_count > 0:
-        block_counts = ExperimentAction.objects.filter(user_id=user.user_id).values('block_number').annotate(
-            count=Count('block_number')
-        ).order_by('block_number')
-        
-        print(f"\n📊 Actions by Block:")
-        for block_info in block_counts:
-            print(f"   Block {block_info['block_number']}: {block_info['count']} actions")
+    # TOAST
+    toast = pd.read_sql_query(f"""
+        SELECT usefulness, reliability, trust, confidence, satisfaction,
+               predictability, understandability, surprised, comfortable,
+               age_group, gender, education
+        FROM experiment_toastresponse WHERE user_id_id = {u['user_id']}
+    """, conn)
+    
+    if len(toast) > 0:
+        t = toast.iloc[0]
+        print(f"\n📋 TOAST QUESTIONNAIRE: ✅ Completed")
+        print(f"   Usefulness: {t['usefulness']}, Reliability: {t['reliability']}, Trust: {t['trust']}")
+        print(f"   Confidence: {t['confidence']}, Satisfaction: {t['satisfaction']}")
+        print(f"   Age: {t['age_group']}, Gender: {t['gender']}, Education: {t['education']}")
+    else:
+        print(f"\n📋 TOAST QUESTIONNAIRE: ❌ Not completed")
+    
+    # DS verification (first 6 trials)
+    if len(actions) > 0 and csv_df is not None and u['csv_row_id'] is not None:
+        try:
+            csv_row = csv_df[csv_df['id'] == u['csv_row_id']].iloc[0]
+            print(f"\n🔍 DS VERIFICATION (first 6):")
+            all_ok = True
+            for _, a in actions.head(6).iterrows():
+                block = int(a['block_number'])
+                trial = int(a['trial_number'])
+                csv_trial = trial if block == 1 else (trial + 10 if block == 2 else trial + 20)
+                s_t = csv_row[f's_t{csv_trial:02d}']
+                expected = 'signal' if s_t > 0 else 'noise'
+                actual = a['dss_judgment']
+                match = '✅' if actual == expected else '❌'
+                if actual != expected:
+                    all_ok = False
+                print(f"   B{block}T{trial}: s_t={s_t:.2f} → DS={actual} {match}")
+            print(f"   {'✅ ALL CORRECT' if all_ok else '❌ MISMATCHES!'}")
+        except:
+            pass
     
     print()
 
+conn.close()
 print("=" * 80)
-print("✅ SUMMARY COMPLETE")
+print("✅ CHECK COMPLETE")
 print("=" * 80)
-
-exit()
-PYEOF
-
+EOF
