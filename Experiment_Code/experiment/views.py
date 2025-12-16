@@ -166,50 +166,77 @@ def mark_row_as_available(csv_row_id: int):
 
 def _reset_abandoned_rows():
     """
-    Auto-timeout: Reset CSV rows that have been in-progress (used=0.5) for >30 minutes
-    without any activity. This handles cases where users close tabs without reaching /end/
+    Auto-timeout: Reset CSV rows that have been in-progress (used=0.5) for >30 minutes.
+    Only checks users with used=0.5 rows (not all incomplete users).
+    Called on landing_page() - when user 100 arrives, it checks if user 99's row should be reset.
     """
     csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
     event_data = pd.read_csv(csv_path)
     
-    # Get all incomplete users with used=0.5 rows
-    incomplete_users = ExperimentData.objects.filter(complete=False, csv_row_id__isnull=False)
+    # Only check rows that are currently 0.5 (in-progress)
+    in_progress_rows = event_data[event_data['used'] == 0.5]
+    
+    if len(in_progress_rows) == 0:
+        return  # No in-progress rows to check
+    
+    # Get users with these CSV rows
+    csv_row_ids = in_progress_rows['id'].tolist()
+    incomplete_users = ExperimentData.objects.filter(
+        complete=False, 
+        csv_row_id__in=csv_row_ids
+    )
+    
     now = datetime.datetime.now()
     timeout_minutes = 30
-    
     reset_count = 0
+    
     for user in incomplete_users:
         csv_row_id = user.csv_row_id
-        if csv_row_id is None:
+        if csv_row_id is None or csv_row_id not in csv_row_ids:
             continue
         
-        # Check if row is still 0.5
-        csv_row = event_data[event_data['id'] == csv_row_id]
-        if len(csv_row) == 0 or csv_row.iloc[0]['used'] != 0.5:
-            continue
+        # Get last action time (most recent action ID = most recent activity)
+        last_action = ExperimentAction.objects.filter(user_id=user.user_id).order_by('-id').first()
         
-        # Check time since start
-        start_time = user.start_time
-        if isinstance(start_time, str):
-            start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-        
-        # Remove timezone for comparison
-        if start_time.tzinfo:
-            start_time = start_time.replace(tzinfo=None)
-        if now.tzinfo:
-            now_naive = now.replace(tzinfo=None)
+        if last_action:
+            # User has actions - estimate last activity time
+            # Sum all decision_times to estimate when they last acted
+            all_actions = ExperimentAction.objects.filter(user_id=user.user_id)
+            total_decision_time = sum(a.decision_time for a in all_actions)  # seconds
+            
+            start_time = user.start_time
+            if isinstance(start_time, str):
+                start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            
+            # Remove timezone
+            if start_time.tzinfo:
+                start_time = start_time.replace(tzinfo=None)
+            if now.tzinfo:
+                now_naive = now.replace(tzinfo=None)
+            else:
+                now_naive = now
+            
+            # Last activity ≈ start_time + total decision time
+            last_activity = start_time + datetime.timedelta(seconds=total_decision_time)
+            time_diff = (now_naive - last_activity).total_seconds() / 60  # minutes
         else:
-            now_naive = now
+            # No actions yet - use start_time
+            start_time = user.start_time
+            if isinstance(start_time, str):
+                start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            
+            # Remove timezone
+            if start_time.tzinfo:
+                start_time = start_time.replace(tzinfo=None)
+            if now.tzinfo:
+                now_naive = now.replace(tzinfo=None)
+            else:
+                now_naive = now
+            
+            time_diff = (now_naive - start_time).total_seconds() / 60  # minutes
         
-        time_diff = (now_naive - start_time).total_seconds() / 60  # minutes
-        
-        # If >30 minutes since start and no recent actions, reset to 0
-        # Check if user has any actions in last 30 minutes
-        recent_actions = ExperimentAction.objects.filter(
-            user_id=user.user_id
-        ).order_by('-id')[:1]
-        
-        # If >30 minutes since start, reset (user can still come back and it will change to 1 if they complete)
+        # If >30 minutes since last activity, reset to 0
+        # User can still come back and complete - it will change to 1 when they finish
         if time_diff > timeout_minutes:
             event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
             reset_count += 1
