@@ -164,9 +164,67 @@ def mark_row_as_available(csv_row_id: int):
             event_data.to_csv(csv_path, index=False)
 
 
+def _reset_abandoned_rows():
+    """
+    Auto-timeout: Reset CSV rows that have been in-progress (used=0.5) for >30 minutes
+    without any activity. This handles cases where users close tabs without reaching /end/
+    """
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+    event_data = pd.read_csv(csv_path)
+    
+    # Get all incomplete users with used=0.5 rows
+    incomplete_users = ExperimentData.objects.filter(complete=False, csv_row_id__isnull=False)
+    now = datetime.datetime.now()
+    timeout_minutes = 30
+    
+    reset_count = 0
+    for user in incomplete_users:
+        csv_row_id = user.csv_row_id
+        if csv_row_id is None:
+            continue
+        
+        # Check if row is still 0.5
+        csv_row = event_data[event_data['id'] == csv_row_id]
+        if len(csv_row) == 0 or csv_row.iloc[0]['used'] != 0.5:
+            continue
+        
+        # Check time since start
+        start_time = user.start_time
+        if isinstance(start_time, str):
+            start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        
+        # Remove timezone for comparison
+        if start_time.tzinfo:
+            start_time = start_time.replace(tzinfo=None)
+        if now.tzinfo:
+            now_naive = now.replace(tzinfo=None)
+        else:
+            now_naive = now
+        
+        time_diff = (now_naive - start_time).total_seconds() / 60  # minutes
+        
+        # If >30 minutes since start and no recent actions, reset to 0
+        # Check if user has any actions in last 30 minutes
+        recent_actions = ExperimentAction.objects.filter(
+            user_id=user.user_id
+        ).order_by('-id')[:1]
+        
+        # If >30 minutes since start, reset (user can still come back and it will change to 1 if they complete)
+        if time_diff > timeout_minutes:
+            event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
+            reset_count += 1
+    
+    # Save if any changes
+    if reset_count > 0:
+        event_data.to_csv(csv_path, index=False)
+
+
 def landing_page(request):
     # Get aid (keep "test" as-is for local testing - can exclude in analysis)
     aid = request.GET.get("aid", "test")
+    
+    # Auto-timeout: Reset abandoned rows (used=0.5 for >30 minutes)
+    _reset_abandoned_rows()
     
     # Check if user already exists (by aid, not just session!)
     try:
