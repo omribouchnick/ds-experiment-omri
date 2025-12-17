@@ -1,8 +1,19 @@
 #!/bin/bash
 # Backfill end_time for incomplete users based on their last action time
 # Usage: bash backfill_end_time_for_incomplete.sh
+# Can be run from any directory - will automatically find the correct path
 
-cd ~/ds-experiment-omri/Experiment_Code && python3 << 'EOF'
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Navigate to Experiment_Code (one level up from QA Codes - PythonAnywhere)
+EXPERIMENT_CODE_DIR="$(dirname "$SCRIPT_DIR")/Experiment_Code"
+
+if [ ! -d "$EXPERIMENT_CODE_DIR" ]; then
+    echo "❌ Error: Could not find Experiment_Code directory at: $EXPERIMENT_CODE_DIR"
+    exit 1
+fi
+
+cd "$EXPERIMENT_CODE_DIR" && python3 << 'EOF'
 import sqlite3
 import datetime
 
