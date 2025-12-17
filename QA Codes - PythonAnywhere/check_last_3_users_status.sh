@@ -2,11 +2,20 @@
 # Show last 3 users with all relevant columns, CSV matching, and status
 # Usage: bash check_last_3_users_status.sh
 
-cd ~/ds-experiment-omri && python3 << 'EOF'
+# Get script directory and navigate to Experiment_Code
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+EXPERIMENT_CODE_DIR="$(dirname "$SCRIPT_DIR")/Experiment_Code"
+
+if [ ! -d "$EXPERIMENT_CODE_DIR" ]; then
+    # Fallback to hardcoded path (for PythonAnywhere)
+    EXPERIMENT_CODE_DIR="$HOME/ds-experiment-omri/Experiment_Code"
+fi
+
+cd "$EXPERIMENT_CODE_DIR" && python3 << 'EOF'
 import sqlite3
 import pandas as pd
 
-conn = sqlite3.connect('db.sqlite3')
+conn = sqlite3.connect('DATA/db.sqlite3')
 
 print("=" * 80)
 print("📊 LAST 3 USERS - COMPLETE STATUS CHECK")
@@ -48,7 +57,38 @@ for _, u in users.iterrows():
     print(f"   AID:              {u['aid']}")
     print(f"   CSV Row ID:       {u['csv_row_id']}")
     print(f"   Start:            {u['start_time']}")
-    print(f"   End:              {u['end_time'] if u['end_time'] else 'N/A'}")
+    if u['end_time']:
+        print(f"   End:              {u['end_time']}")
+    else:
+        print(f"   End:              N/A (user hasn't visited end page yet)")
+    
+    # Calculate duration if both times exist
+    if u['end_time'] and u['start_time']:
+        try:
+            start = pd.to_datetime(u['start_time'])
+            end = pd.to_datetime(u['end_time'])
+            duration_seconds = (end - start).total_seconds()
+            duration_minutes = duration_seconds / 60
+            print(f"   Duration:         {duration_minutes:.1f} minutes ({duration_seconds:.0f} seconds)")
+            
+            # For incomplete users, verify end_time is based on last action
+            if not u['complete']:
+                # Get sum of decision_times
+                decision_times = pd.read_sql_query(f"""
+                    SELECT SUM(decision_time) as total_time
+                    FROM experiment_experimentaction
+                    WHERE user_id_id = {u['user_id']}
+                """, conn)
+                if len(decision_times) > 0 and decision_times.iloc[0]['total_time'] is not None:
+                    total_decision_time = decision_times.iloc[0]['total_time']
+                    expected_end = start + pd.Timedelta(seconds=total_decision_time)
+                    time_diff = abs((end - expected_end).total_seconds())
+                    if time_diff < 2:  # Allow 2 second tolerance
+                        print(f"   ✅ end_time matches last action time (sum of decision_times: {total_decision_time:.1f}s)")
+                    else:
+                        print(f"   ⚠️  end_time differs from expected last action time by {time_diff:.1f}s")
+        except Exception as e:
+            print(f"   ⚠️  Could not calculate duration: {e}")
     
     # Parameters from DB
     print(f"\n📊 EXPERIMENT PARAMETERS (from DB):")
