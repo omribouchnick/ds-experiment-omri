@@ -15,7 +15,7 @@ print("=" * 80)
 
 # 1. Check end_time coverage
 users = pd.read_sql_query("""
-    SELECT user_id, aid, complete, start_time, end_time
+    SELECT user_id, aid, csv_row_id, complete, start_time, end_time
     FROM experiment_experimentdata
     WHERE start_time >= '2025-12-14'
     ORDER BY user_id
