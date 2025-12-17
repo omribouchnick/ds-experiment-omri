@@ -235,11 +235,32 @@ def _reset_abandoned_rows():
             
             time_diff = (now_naive - start_time).total_seconds() / 60  # minutes
         
-        # If >30 minutes since last activity, reset to 0
+        # If >30 minutes since last activity, reset to 0 and set end_time
         # User can still come back and complete - it will change to 1 when they finish
         if time_diff > timeout_minutes:
             event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
             reset_count += 1
+            
+            # Set end_time to last action time (if actions exist)
+            if not user.end_time:  # Only set if not already set
+                if last_action:
+                    # Calculate last action time: start_time + sum of all decision_times
+                    all_actions = ExperimentAction.objects.filter(user_id=user.user_id).order_by('id')
+                    total_decision_time = sum(a.decision_time for a in all_actions)  # seconds
+                    
+                    start_time = user.start_time
+                    if isinstance(start_time, str):
+                        start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    if start_time.tzinfo:
+                        start_time = start_time.replace(tzinfo=None)
+                    
+                    last_action_time = start_time + datetime.timedelta(seconds=total_decision_time)
+                    user.end_time = last_action_time.isoformat()
+                    user.save()
+                else:
+                    # No actions - set to start_time
+                    user.end_time = user.start_time.isoformat() if isinstance(user.start_time, str) else str(user.start_time)
+                    user.save()
     
     # Save if any changes
     if reset_count > 0:
