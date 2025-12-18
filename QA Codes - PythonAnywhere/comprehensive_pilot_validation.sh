@@ -348,8 +348,8 @@ print()
 
 if len(toast) > 0:
     print("TOAST Response Statistics (mean ± std):")
-    toast_stats = toast[['usefulness', 'ease_of_use', 'reliability', 'trust', 'confidence', 'satisfaction']].describe()
-    for col in ['usefulness', 'ease_of_use', 'reliability', 'trust', 'confidence', 'satisfaction']:
+    toast_stats = toast[['usefulness', 'reliability', 'trust', 'confidence', 'satisfaction']].describe()
+    for col in ['usefulness', 'reliability', 'trust', 'confidence', 'satisfaction']:
         if col in toast_stats.columns:
             mean = toast_stats.loc['mean', col]
             std = toast_stats.loc['std', col]
