@@ -1,5 +1,6 @@
 #!/bin/bash
-# Quick summary of all users in the experiment
+# Quick summary of all users in the 
+
 # Usage: bash check_all_users_summary.sh
 
 cd ~/ds-experiment-omri && python3 << 'EOF'

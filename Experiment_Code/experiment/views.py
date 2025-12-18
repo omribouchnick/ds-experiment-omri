@@ -8,6 +8,7 @@ import pandas as pd
 import random
 import datetime
 import os
+import uuid
 from .models import *
 
 
@@ -268,11 +269,17 @@ def _reset_abandoned_rows():
 
 
 def landing_page(request):
-    # Get aid (keep "test" as-is for local testing - can exclude in analysis)
-    aid = request.GET.get("aid", "test")
+    # Get aid - generate unique test aid if not provided
+    aid = request.GET.get("aid", None)
     
     # Auto-timeout: Reset abandoned rows (used=0.5 for >30 minutes)
     _reset_abandoned_rows()
+    
+    # If no aid provided, generate unique test aid to avoid conflicts
+    if not aid:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = uuid.uuid4().hex[:6]
+        aid = f"test_{timestamp}_{unique_id}"
     
     # Check if user already exists (by aid, not just session!)
     try:
@@ -280,6 +287,14 @@ def landing_page(request):
         
         # User exists - check if completed
         if experiment_data.complete:
+            # If test user already complete, generate new unique aid
+            if aid.startswith("test"):
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                unique_id = uuid.uuid4().hex[:6]
+                aid = f"test_{timestamp}_{unique_id}"
+                # Raise exception to create new user with new aid
+                raise ExperimentData.DoesNotExist
+            # Real CloudResearch user who already completed
             return redirect('/end/')
         
         # Incomplete user - restore their data
