@@ -131,19 +131,29 @@ overall_accuracy = 100 * overall_correct / overall_total
 print(f"Overall Accuracy: {overall_accuracy:.1f}% ({overall_correct}/{overall_total})")
 print()
 
-# DS agreement
+# DS agreement (only for Blocks 2 and 3 where DS is shown)
 actions['dss_norm'] = actions['dss_judgment'].replace({
     'signal': 1, 'noise': 0
 }).astype(int)
 actions['agreed_with_ds'] = (actions['classification_norm'] == actions['dss_norm']).astype(int)
 
-for block in [1, 2, 3]:
+print(f"📊 DS AGREEMENT (Blocks 2-3 only, where DS is shown):")
+for block in [2, 3]:
     block_actions = actions[actions['block_number'] == block]
     if len(block_actions) > 0:
         agreed = block_actions['agreed_with_ds'].sum()
         total = len(block_actions)
         agreement = 100 * agreed / total
-        print(f"Block {block} - Agreed with DS: {agreement:.1f}% ({agreed}/{total})")
+        print(f"   Block {block}: {agreement:.1f}% ({agreed}/{total})")
+
+# For Block 1, show coincidental match (interesting but not "agreement")
+block1_actions = actions[actions['block_number'] == 1]
+if len(block1_actions) > 0:
+    coincidental = block1_actions['agreed_with_ds'].sum()
+    total = len(block1_actions)
+    rate = 100 * coincidental / total
+    print(f"\n   Block 1 (no DS shown): {rate:.1f}% coincidental match with DS ({coincidental}/{total})")
+    print(f"   (User made independent decisions, didn't see DS)")
 
 print()
 
