@@ -247,59 +247,122 @@ else:
 print()
 
 ################################################################################
-# SECTION 4: DS DECISION VERIFICATION
+# SECTION 4: DS DECISION VERIFICATION (CSV vs Database)
 ################################################################################
 print("=" * 100)
-print("🤖 SECTION 4: DS DECISION VERIFICATION")
+print("🤖 SECTION 4: DS DECISION VERIFICATION (CSV vs Database)")
 print("=" * 100)
 print()
 
-# Check that DS decisions exist and are valid
-print(f"Checking DS decisions for all {len(complete_actions)} complete user actions:")
+# Helper function to get CSV column name for trial
+def get_trial_col(trial_num, block_num):
+    """Map block+trial to CSV column number (1-120)"""
+    if block_num == 1:
+        return trial_num  # Block 1: trials 1-10 → columns 1-10
+    elif block_num == 2:
+        return trial_num + 10  # Block 2: trials 1-10 → columns 11-20
+    else:  # block_num == 3
+        return trial_num + 20  # Block 3: trials 1-100 → columns 21-120
+
+# Sample 3 random complete users for detailed verification
+print(f"Detailed Verification: Checking 3 random complete users")
 print()
 
-# Count DS decisions
-ds_signal = complete_actions[complete_actions['dss_judgment'] == 'signal']
-ds_noise = complete_actions[complete_actions['dss_judgment'] == 'noise']
-ds_missing = complete_actions[complete_actions['dss_judgment'].isna()]
-
-print(f"DS Decision Distribution:")
-print(f"   Signal: {len(ds_signal)} ({100*len(ds_signal)/len(complete_actions):.1f}%)")
-print(f"   Noise: {len(ds_noise)} ({100*len(ds_noise)/len(complete_actions):.1f}%)")
-print(f"   Missing: {len(ds_missing)} ({100*len(ds_missing)/len(complete_actions):.1f}%)")
-print()
-
-if len(ds_missing) > 0:
-    print(f"   ⚠️  {len(ds_missing)} actions missing DS judgment")
-    issues.append(f"Missing DS judgments: {len(ds_missing)} actions")
-else:
-    print(f"   ✅ All actions have DS judgments")
-print()
-
-# Sample 3 users to show DS judgment examples
-print(f"Sample DS Judgments (3 random complete users):")
 sample_users = complete_users.sample(n=min(3, len(complete_users)))
+ds_verification_errors = 0
 
 for idx, user in sample_users.iterrows():
     user_id = user['user_id']
     csv_row_id = user['csv_row_id']
     
-    print(f"\nUser {user_id} (CSV Row {int(csv_row_id) if pd.notna(csv_row_id) else 'N/A'}):")
-    print(f"   ps={user['ps']}, d'_h={user['human_sensitivity']}, d'_DS={user['ds_sensitivity']}")
+    print(f"User {user_id} (CSV Row {int(csv_row_id) if pd.notna(csv_row_id) else 'N/A'}):")
     
-    # Get user actions (first 5 from each block)
-    user_actions = actions[actions['user_id'] == user_id].sort_values(['block_number', 'trial_number'])
+    if pd.isna(csv_row_id):
+        print(f"   ⚠️  No CSV row assigned")
+        ds_verification_errors += 1
+        continue
     
-    for block in [1, 2, 3]:
-        block_actions = user_actions[user_actions['block_number'] == block].head(3)
-        if len(block_actions) > 0:
-            print(f"   Block {block} (first 3 trials):")
-            for _, action in block_actions.iterrows():
-                trial = int(action['trial_number'])
-                stimulus = action['stimulus_seen']
-                ds_j = action['dss_judgment']
-                human_d = action['classification_decision']
-                print(f"      T{trial}: stimulus={stimulus:.2f}, DS={ds_j}, Human={human_d}")
+    # Get CSV row
+    csv_row = csv_df[csv_df['id'] == csv_row_id]
+    if len(csv_row) == 0:
+        print(f"   ⚠️  CSV row not found")
+        ds_verification_errors += 1
+        continue
+    
+    csv_row = csv_row.iloc[0]
+    
+    # Get user actions (first 3 trials only for display)
+    user_actions = actions[actions['user_id'] == user_id].sort_values(['block_number', 'trial_number']).head(3)
+    
+    errors_this_user = 0
+    checked_this_user = 0
+    
+    for _, action in user_actions.iterrows():
+        block = int(action['block_number'])
+        trial = int(action['trial_number'])
+        
+        # Map to CSV column
+        csv_trial = get_trial_col(trial, block)
+        t_str = f'0{csv_trial}' if csv_trial < 10 else f'{csv_trial}'
+        
+        # Get CSV values
+        try:
+            s_t_csv = float(csv_row[f's_t{t_str}'])  # DS's stimulus
+            h_t_csv = float(csv_row[f'h_t{t_str}'])  # Human's stimulus
+            ds_dec_csv = int(csv_row[f'ds_dec_t{t_str}'])  # DS decision from CSV
+        except:
+            print(f"   ⚠️  B{block}T{trial}: Could not read CSV columns")
+            errors_this_user += 1
+            continue
+        
+        # Get database values
+        stimulus_db = action['stimulus_seen']
+        dss_judgment_db = action['dss_judgment']
+        
+        # Convert DB dss_judgment to int
+        if dss_judgment_db == 'signal':
+            ds_dec_db = 1
+        elif dss_judgment_db == 'noise':
+            ds_dec_db = 0
+        else:
+            ds_dec_db = -1
+        
+        # Verify 3 things:
+        # 1. CSV ds_dec is correct based on s_t
+        expected_ds_dec = 1 if s_t_csv > 0 else 0
+        csv_correct = (ds_dec_csv == expected_ds_dec)
+        
+        # 2. DB dss_judgment matches CSV ds_dec
+        db_csv_match = (ds_dec_db == ds_dec_csv)
+        
+        # 3. DB stimulus_seen matches CSV h_t + 6.5
+        expected_stimulus = h_t_csv + 6.5
+        stimulus_match = abs(stimulus_db - expected_stimulus) < 0.01  # Allow small float error
+        
+        # Display result
+        status1 = "✅" if csv_correct else "❌"
+        status2 = "✅" if db_csv_match else "❌"
+        status3 = "✅" if stimulus_match else "❌"
+        
+        if not (csv_correct and db_csv_match and stimulus_match):
+            errors_this_user += 1
+        
+        checked_this_user += 1
+        
+        print(f"   B{block}T{trial}: s_t={s_t_csv:.2f} → CSV_ds={ds_dec_csv} {status1} | DB_ds={ds_dec_db} {status2} | stimulus={stimulus_db:.2f} (exp: {expected_stimulus:.2f}) {status3}")
+    
+    if errors_this_user > 0:
+        print(f"   ⚠️  {errors_this_user}/{checked_this_user} trials with errors")
+        ds_verification_errors += 1
+    else:
+        print(f"   ✅ All {checked_this_user} trials verified correctly")
+    print()
+
+if ds_verification_errors > 0:
+    issues.append(f"DS verification errors: {ds_verification_errors} users")
+    print(f"⚠️  {ds_verification_errors} users had verification errors")
+else:
+    print(f"✅ All sampled users passed DS verification!")
 
 print()
 
