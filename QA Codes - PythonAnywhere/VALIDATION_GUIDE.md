@@ -83,6 +83,39 @@ bash "../QA Codes - PythonAnywhere/check_last_3_users_status.sh"
 
 ---
 
+### 4. **`validate_last_user_detailed.sh`** - DEEP DIVE ⭐
+**Complete forensic analysis of the most recent complete user**
+
+**What it checks:**
+- All 120 actions (saved correctly?)
+- Accuracy by block (Block 1, 2, 3)
+- Reaction times (mean, range)
+- DS agreement rates
+- CSV row matching (ps, d'_human, d'_DS)
+- First 5 trials: DB vs CSV columns verification
+  - Event matches
+  - Human stimulus (h_t + 6.5)
+  - DS stimulus (s_t)
+  - DS decision correctness
+- TOAST responses
+- CSV flag status
+
+**Use this when:**
+- You want complete verification of one user
+- Before/after major changes
+- Investigating data quality issues
+- Confirming everything works end-to-end
+
+**Run on PythonAnywhere:**
+```bash
+cd ~/ds-experiment-omri
+bash "QA Codes - PythonAnywhere/validate_last_user_detailed.sh"
+```
+
+**Expected output:** Detailed report with action counts, accuracy stats, CSV verification for first 5 trials
+
+---
+
 ## 🎯 Recommended Validation Workflow
 
 ### During Pilot:
@@ -297,6 +330,7 @@ Performance by Block (Complete Users Only):
 | Full health check | `bash "QA Codes - PythonAnywhere/comprehensive_pilot_validation.sh"` |
 | Last complete user | `bash "../QA Codes - PythonAnywhere/validate_complete_user_and_timeout.sh"` |
 | Last 3 users detail | `bash "../QA Codes - PythonAnywhere/check_last_3_users_status.sh"` |
+| Deep dive last user | `bash "QA Codes - PythonAnywhere/validate_last_user_detailed.sh"` |
 | Download database | Files → `Experiment_Code/DATA/db.sqlite3` |
 | Pull latest scripts | `cd ~/ds-experiment-omri && git pull` |
 
