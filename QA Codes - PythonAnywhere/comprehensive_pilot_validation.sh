@@ -38,7 +38,7 @@ users = pd.read_sql_query("""
 
 actions = pd.read_sql_query("""
     SELECT user_id_id as user_id, block_number, trial_number, 
-           human_judgment, dss_judgment, s_t, decision_time
+           classification_decision, dss_judgment, stimulus_seen, decision_time
     FROM experiment_experimentaction
 """, conn)
 
@@ -147,7 +147,7 @@ complete_user_ids = complete_users['user_id'].tolist()
 complete_actions = actions[actions['user_id'].isin(complete_user_ids)].copy()
 
 # Normalize judgment columns
-complete_actions['human_judgment_norm'] = complete_actions['human_judgment'].replace({
+complete_actions['classification_decision_norm'] = complete_actions['classification_decision'].replace({
     'signal': 1, 'noise': 0, 1: 1, 0: 0
 }).fillna(-1).astype(int)
 
@@ -156,8 +156,8 @@ complete_actions['dss_judgment_norm'] = complete_actions['dss_judgment'].replace
 }).fillna(-1).astype(int)
 
 # Calculate correct trials (where human judgment matches ground truth)
-complete_actions['is_signal'] = (complete_actions['s_t'] > 0).astype(int)
-complete_actions['human_correct'] = (complete_actions['human_judgment_norm'] == complete_actions['is_signal']).astype(int)
+complete_actions['is_signal'] = (complete_actions['stimulus_seen'] > 0).astype(int)
+complete_actions['human_correct'] = (complete_actions['classification_decision_norm'] == complete_actions['is_signal']).astype(int)
 
 # Group by block
 if len(complete_actions) > 0:
@@ -290,19 +290,19 @@ for idx, user in sample_users.iterrows():
     for _, action in user_actions.head(3).iterrows():
         block = int(action['block_number'])
         trial = int(action['trial_number'])
-        s_t = action['s_t']
+        stimulus = action['stimulus_seen']
         
-        # Expected DS decision based on dprime_s and s_t
+        # Expected DS decision based on dprime_s and stimulus
         dprime_s = csv_row['dprime_s']
         criterion = 0.5 * dprime_s
-        expected_ds = 1 if s_t > criterion else 0
+        expected_ds = 1 if stimulus > criterion else 0
         
         # Actual DS decision
-        ds_judgment = action['dss_judgment']
-        if pd.notna(ds_judgment):
-            if ds_judgment in ['signal', 1, 1.0]:
+        dss_judgment = action['dss_judgment']
+        if pd.notna(dss_judgment):
+            if dss_judgment in ['signal', 1, 1.0]:
                 actual_ds = 1
-            elif ds_judgment in ['noise', 0, 0.0]:
+            elif dss_judgment in ['noise', 0, 0.0]:
                 actual_ds = 0
             else:
                 actual_ds = -1
@@ -311,7 +311,7 @@ for idx, user in sample_users.iterrows():
             if actual_ds != expected_ds:
                 errors += 1
             
-            print(f"   B{block}T{trial+1}: s_t={s_t:.2f}, criterion={criterion:.2f}, expected={expected_ds}, actual={actual_ds} {match}")
+            print(f"   B{block}T{trial+1}: stimulus={stimulus:.2f}, criterion={criterion:.2f}, expected={expected_ds}, actual={actual_ds} {match}")
             checked += 1
     
     if errors > 0:
@@ -348,8 +348,8 @@ print()
 
 if len(toast) > 0:
     print("TOAST Response Statistics (mean ± std):")
-    toast_stats = toast[['usefulness', 'reliability', 'trust', 'confidence', 'satisfaction']].describe()
-    for col in ['usefulness', 'reliability', 'trust', 'confidence', 'satisfaction']:
+    toast_stats = toast[['usefulness', 'ease_of_use', 'reliability', 'trust', 'confidence', 'satisfaction']].describe()
+    for col in ['usefulness', 'ease_of_use', 'reliability', 'trust', 'confidence', 'satisfaction']:
         if col in toast_stats.columns:
             mean = toast_stats.loc['mean', col]
             std = toast_stats.loc['std', col]
