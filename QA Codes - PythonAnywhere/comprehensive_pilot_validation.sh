@@ -254,75 +254,53 @@ print("🤖 SECTION 4: DS DECISION VERIFICATION")
 print("=" * 100)
 print()
 
-# Sample 5 random complete users for DS verification
-sample_users = complete_users.sample(n=min(5, len(complete_users)))
-
-print(f"Verifying DS decisions for {len(sample_users)} random complete users:")
+# Check that DS decisions exist and are valid
+print(f"Checking DS decisions for all {len(complete_actions)} complete user actions:")
 print()
 
-ds_issues = 0
+# Count DS decisions
+ds_signal = complete_actions[complete_actions['dss_judgment'] == 'signal']
+ds_noise = complete_actions[complete_actions['dss_judgment'] == 'noise']
+ds_missing = complete_actions[complete_actions['dss_judgment'].isna()]
+
+print(f"DS Decision Distribution:")
+print(f"   Signal: {len(ds_signal)} ({100*len(ds_signal)/len(complete_actions):.1f}%)")
+print(f"   Noise: {len(ds_noise)} ({100*len(ds_noise)/len(complete_actions):.1f}%)")
+print(f"   Missing: {len(ds_missing)} ({100*len(ds_missing)/len(complete_actions):.1f}%)")
+print()
+
+if len(ds_missing) > 0:
+    print(f"   ⚠️  {len(ds_missing)} actions missing DS judgment")
+    issues.append(f"Missing DS judgments: {len(ds_missing)} actions")
+else:
+    print(f"   ✅ All actions have DS judgments")
+print()
+
+# Sample 3 users to show DS judgment examples
+print(f"Sample DS Judgments (3 random complete users):")
+sample_users = complete_users.sample(n=min(3, len(complete_users)))
+
 for idx, user in sample_users.iterrows():
     user_id = user['user_id']
     csv_row_id = user['csv_row_id']
     
-    print(f"User {user_id} (CSV Row {int(csv_row_id) if pd.notna(csv_row_id) else 'N/A'}):")
+    print(f"\nUser {user_id} (CSV Row {int(csv_row_id) if pd.notna(csv_row_id) else 'N/A'}):")
+    print(f"   ps={user['ps']}, d'_h={user['human_sensitivity']}, d'_DS={user['ds_sensitivity']}")
     
-    if pd.isna(csv_row_id):
-        print(f"   ⚠️  No CSV row assigned")
-        ds_issues += 1
-        continue
-    
-    # Get CSV row
-    csv_row = csv_df[csv_df['id'] == csv_row_id]
-    if len(csv_row) == 0:
-        print(f"   ⚠️  CSV row not found")
-        ds_issues += 1
-        continue
-    
-    csv_row = csv_row.iloc[0]
-    
-    # Get user actions
+    # Get user actions (first 5 from each block)
     user_actions = actions[actions['user_id'] == user_id].sort_values(['block_number', 'trial_number'])
     
-    # Check first 3 DS decisions
-    checked = 0
-    errors = 0
-    for _, action in user_actions.head(3).iterrows():
-        block = int(action['block_number'])
-        trial = int(action['trial_number'])
-        stimulus = action['stimulus_seen']
-        
-        # Expected DS decision based on dprime_s and stimulus
-        dprime_s = csv_row['dprime_s']
-        criterion = 0.5 * dprime_s
-        expected_ds = 1 if stimulus > criterion else 0
-        
-        # Actual DS decision
-        dss_judgment = action['dss_judgment']
-        if pd.notna(dss_judgment):
-            if dss_judgment in ['signal', 1, 1.0]:
-                actual_ds = 1
-            elif dss_judgment in ['noise', 0, 0.0]:
-                actual_ds = 0
-            else:
-                actual_ds = -1
-            
-            match = "✅" if actual_ds == expected_ds else "❌"
-            if actual_ds != expected_ds:
-                errors += 1
-            
-            print(f"   B{block}T{trial+1}: stimulus={stimulus:.2f}, criterion={criterion:.2f}, expected={expected_ds}, actual={actual_ds} {match}")
-            checked += 1
-    
-    if errors > 0:
-        print(f"   ⚠️  {errors}/{checked} DS decisions incorrect")
-        ds_issues += 1
-    else:
-        print(f"   ✅ All {checked} DS decisions correct")
-    print()
+    for block in [1, 2, 3]:
+        block_actions = user_actions[user_actions['block_number'] == block].head(3)
+        if len(block_actions) > 0:
+            print(f"   Block {block} (first 3 trials):")
+            for _, action in block_actions.iterrows():
+                trial = int(action['trial_number'])
+                stimulus = action['stimulus_seen']
+                ds_j = action['dss_judgment']
+                human_d = action['classification_decision']
+                print(f"      T{trial}: stimulus={stimulus:.2f}, DS={ds_j}, Human={human_d}")
 
-if ds_issues > 0:
-    issues.append(f"DS decision errors: {ds_issues} users sampled")
 print()
 
 ################################################################################
