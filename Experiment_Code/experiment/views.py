@@ -281,6 +281,8 @@ def landing_page(request):
         unique_id = uuid.uuid4().hex[:6]
         aid = f"test_{timestamp}_{unique_id}"
     
+    # Auto-timeout: Reset abandoned rows (used=0.5 for >30 minutes)
+    _reset_abandoned_rows()
     # Check if user already exists (by aid, not just session!)
     try:
         experiment_data = ExperimentData.objects.get(aid=aid)
@@ -831,7 +833,7 @@ def log_devtools(request):
     if request.method == 'POST':
         user_id = request.session.get('user_id')
         if user_id:
-            csv_path = os.path.join(settings.BASE_DIR, 'data', 'devtools_log.csv')
+            csv_path = os.path.join(settings.BASE_DIR, 'DATA', 'devtools_log.csv')
             file_exists = os.path.exists(csv_path)
             with open(csv_path, 'a', newline='') as f:
                 writer = csv.writer(f)
@@ -839,3 +841,4 @@ def log_devtools(request):
                     writer.writerow(['user_id', 'details', 'timestamp'])
                 writer.writerow([user_id, request.body.decode('utf-8'), datetime.datetime.now().isoformat()])
     return JsonResponse({'status': 'ok'})
+
