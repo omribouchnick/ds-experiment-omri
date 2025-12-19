@@ -194,7 +194,7 @@ print("┌" + "─"*98 + "┐")
 print("│ PS    │ N Users │ Overall Acc │ Block3 Acc │ DS Agreement │ TOAST: Useful │ Reliable │ Trust │")
 print("├" + "─"*98 + "┤")
 for _, row in summary_df.iterrows():
-    print(f"│ {row['ps']:.2f}  │   {row['n_users']:3d}   │    {row['overall_acc']:5.1f}%   │   {row['block3_acc']:5.1f}%    │     {row['ds_agreement']:5.1f}%     │     {row['toast_useful']:4.2f}      │   {row['toast_reliable']:4.2f}   │ {row['toast_trust']:4.2f}  │")
+    print(f"│ {row['ps']:.2f}  │   {int(row['n_users']):3d}   │    {row['overall_acc']:5.1f}%   │   {row['block3_acc']:5.1f}%    │     {row['ds_agreement']:5.1f}%     │     {row['toast_useful']:4.2f}      │   {row['toast_reliable']:4.2f}   │ {row['toast_trust']:4.2f}  │")
 print("└" + "─"*98 + "┘")
 print()
 
