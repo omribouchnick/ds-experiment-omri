@@ -38,7 +38,8 @@ users = pd.read_sql_query("""
 
 actions = pd.read_sql_query("""
     SELECT user_id_id as user_id, block_number, trial_number, 
-           classification_decision, dss_judgment, stimulus_seen, decision_time
+           classification_decision, dss_judgment, stimulus_seen, decision_time,
+           correct_classification
     FROM experiment_experimentaction
 """, conn)
 
@@ -146,18 +147,11 @@ print()
 complete_user_ids = complete_users['user_id'].tolist()
 complete_actions = actions[actions['user_id'].isin(complete_user_ids)].copy()
 
-# Normalize judgment columns
-complete_actions['classification_decision_norm'] = complete_actions['classification_decision'].replace({
-    'signal': 1, 'noise': 0, 1: 1, 0: 0
-}).fillna(-1).astype(int)
-
-complete_actions['dss_judgment_norm'] = complete_actions['dss_judgment'].replace({
-    'signal': 1, 'noise': 0, 1: 1, 0: 0
-}).fillna(-1).astype(int)
-
-# Calculate correct trials (where human judgment matches ground truth)
-complete_actions['is_signal'] = (complete_actions['stimulus_seen'] > 0).astype(int)
-complete_actions['human_correct'] = (complete_actions['classification_decision_norm'] == complete_actions['is_signal']).astype(int)
+# Calculate correct trials (where human judgment matches ground truth from DB)
+# Simply compare classification_decision with correct_classification (both are 'signal' or 'noise')
+complete_actions['human_correct'] = (
+    complete_actions['classification_decision'] == complete_actions['correct_classification']
+).astype(int)
 
 # Group by block
 if len(complete_actions) > 0:
