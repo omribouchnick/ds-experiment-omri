@@ -9,7 +9,40 @@ import random
 import datetime
 import os
 import uuid
+import logging
 from .models import *
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+
+def log_landing_attempt(request, aid, source):
+    """
+    Log EVERY landing page attempt to a CSV file for debugging.
+    This runs BEFORE any database operations, so we can see all attempts.
+    """
+    try:
+        log_path = os.path.join(settings.BASE_DIR, 'DATA', 'landing_attempts.csv')
+        file_exists = os.path.exists(log_path)
+        
+        # Get all URL parameters for debugging
+        all_params = dict(request.GET)
+        
+        with open(log_path, 'a', newline='') as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(['timestamp', 'aid', 'source', 'ip', 'user_agent', 'referer', 'all_params'])
+            writer.writerow([
+                datetime.datetime.now().isoformat(),
+                aid,
+                source,
+                request.META.get('REMOTE_ADDR', 'unknown'),
+                request.META.get('HTTP_USER_AGENT', 'unknown')[:100],
+                request.META.get('HTTP_REFERER', 'none')[:100] if request.META.get('HTTP_REFERER') else 'none',
+                str(all_params)[:200]
+            ])
+    except Exception as e:
+        logger.error(f"Failed to log landing attempt: {e}")
 
 
 def load_block_trials(csv_row_id=None) -> tuple:
@@ -26,14 +59,34 @@ def load_block_trials(csv_row_id=None) -> tuple:
     # Scalar to add to all stimuli values (makes task harder without changing probabilities)
     STIMULI_SCALAR = 6.5
     
-    # Load CSV
+    # Load CSV - with explicit path validation
     csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
-    event_data = pd.read_csv(csv_path)
+    
+    # Verify path exists
+    if not os.path.exists(csv_path):
+        logger.error(f"CRITICAL: CSV file not found at {csv_path}")
+        logger.error(f"BASE_DIR = {settings.BASE_DIR}")
+        logger.error(f"Contents of BASE_DIR: {os.listdir(settings.BASE_DIR)}")
+        if os.path.exists(os.path.join(settings.BASE_DIR, "DATA")):
+            logger.error(f"Contents of DATA folder: {os.listdir(os.path.join(settings.BASE_DIR, 'DATA'))}")
+        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+    
+    try:
+        event_data = pd.read_csv(csv_path)
+        logger.debug(f"Loaded CSV with {len(event_data)} rows")
+    except Exception as e:
+        logger.error(f"CRITICAL: Failed to read CSV at {csv_path}: {e}")
+        raise
     
     if csv_row_id:
         # Load specific row
-        selected_row = event_data[event_data['id'] == csv_row_id].iloc[0]
+        matching_rows = event_data[event_data['id'] == csv_row_id]
+        if len(matching_rows) == 0:
+            logger.error(f"CRITICAL: CSV row {csv_row_id} not found in CSV!")
+            raise ValueError(f"CSV row {csv_row_id} not found")
+        selected_row = matching_rows.iloc[0]
         row_id = int(selected_row['id'])
+        logger.debug(f"Loaded specific row {row_id}")
     else:
         # Select new row with 3-tier priority:
         # 1. Fresh rows (used=0) - preferred
@@ -42,24 +95,34 @@ def load_block_trials(csv_row_id=None) -> tuple:
         
         fresh_rows = event_data[event_data['used'] == 0].copy()
         in_progress_rows = event_data[event_data['used'] == 0.5].copy()
+        completed_rows = event_data[event_data['used'] == 1].copy()
+        
+        logger.info(f"Row availability: fresh={len(fresh_rows)}, in_progress={len(in_progress_rows)}, completed={len(completed_rows)}")
         
         if len(fresh_rows) >= 5:
             # Plenty of fresh rows - use those
             selected_row = fresh_rows.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
+            logger.info(f"Selected fresh row {row_id} (plenty available)")
         elif len(fresh_rows) > 0:
             # Few fresh rows left (< 5) - include in_progress as fallback
             available_rows = pd.concat([fresh_rows, in_progress_rows])
             selected_row = available_rows.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
+            logger.info(f"Selected row {row_id} from fresh+in_progress pool (few fresh left)")
         elif len(in_progress_rows) > 0:
             # No fresh rows, but some in_progress - use those
             selected_row = in_progress_rows.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
+            logger.warning(f"Selected in-progress row {row_id} (no fresh rows!)")
         else:
             # All rows completed (used=1) - recycle any row
+            if len(event_data) == 0:
+                logger.error("CRITICAL: CSV has no rows!")
+                raise ValueError("CSV file is empty")
             selected_row = event_data.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
+            logger.warning(f"RECYCLING completed row {row_id} (all rows used!)")
     
     # Extract ps and dprimes from the selected row
     ps = float(selected_row['ps'])
@@ -119,9 +182,23 @@ def mark_row_in_progress(csv_row_id: int):
     """
     if csv_row_id:
         csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
-        event_data = pd.read_csv(csv_path)
-        event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0.5
-        event_data.to_csv(csv_path, index=False)
+        
+        if not os.path.exists(csv_path):
+            logger.error(f"CRITICAL: CSV not found at {csv_path} in mark_row_in_progress")
+            raise FileNotFoundError(f"CSV not found: {csv_path}")
+        
+        try:
+            event_data = pd.read_csv(csv_path)
+            old_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values
+            old_value = old_value[0] if len(old_value) > 0 else 'NOT_FOUND'
+            
+            event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0.5
+            event_data.to_csv(csv_path, index=False)
+            
+            logger.info(f"Marked row {csv_row_id} as in-progress: {old_value} -> 0.5")
+        except Exception as e:
+            logger.error(f"Failed to mark row {csv_row_id} as in-progress: {e}")
+            raise
 
 
 def mark_row_as_used(user_id: int):
@@ -269,20 +346,39 @@ def _reset_abandoned_rows():
 
 
 def landing_page(request):
-    # Get aid - generate unique test aid if not provided
-    aid = request.GET.get("aid", None)
+    # ========== STEP 1: GET AID FROM MULTIPLE POSSIBLE PARAMETERS ==========
+    # CloudResearch might use different parameter names
+    aid = None
+    aid_source = "none"
     
-    # Auto-timeout: Reset abandoned rows (used=0.5 for >30 minutes)
-    _reset_abandoned_rows()
+    # Check multiple possible parameter names (in priority order)
+    aid_param_names = ['aid', 'workerId', 'WORKER_ID', 'worker_id', 'participant_id', 
+                       'participantId', 'session_id', 'sessionId', 'prolific_pid', 'PROLIFIC_PID']
     
-    # If no aid provided, generate unique test aid to avoid conflicts
+    for param_name in aid_param_names:
+        value = request.GET.get(param_name)
+        if value and value != '{{WORKER_ID}}' and not value.startswith('{{'):
+            aid = value
+            aid_source = param_name
+            break
+    
+    # ========== STEP 2: LOG THIS ATTEMPT IMMEDIATELY (before any DB/CSV ops) ==========
+    log_landing_attempt(request, aid if aid else "NO_AID", aid_source)
+    
+    # ========== STEP 3: GENERATE TEST AID IF NONE PROVIDED ==========
     if not aid:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         unique_id = uuid.uuid4().hex[:6]
         aid = f"test_{timestamp}_{unique_id}"
+        logger.info(f"Generated test AID: {aid}")
+    else:
+        logger.info(f"Received AID '{aid}' from parameter '{aid_source}'")
     
-    # Auto-timeout: Reset abandoned rows (used=0.5 for >30 minutes)
-    _reset_abandoned_rows()
+    # ========== STEP 4: AUTO-TIMEOUT FOR ABANDONED ROWS ==========
+    try:
+        _reset_abandoned_rows()
+    except Exception as e:
+        logger.error(f"Error in _reset_abandoned_rows: {e}")
     # Check if user already exists (by aid, not just session!)
     try:
         experiment_data = ExperimentData.objects.get(aid=aid)
@@ -327,22 +423,49 @@ def landing_page(request):
         
     except ExperimentData.DoesNotExist:
         # New user - assign CSV row
-        events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()
+        logger.info(f"Creating new user with AID: {aid}")
+        
+        try:
+            events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()
+            logger.info(f"Assigned CSV row {csv_row_id} to AID {aid}")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to load_block_trials for AID {aid}: {e}")
+            # Log the error to a file for debugging
+            error_log_path = os.path.join(settings.BASE_DIR, 'DATA', 'csv_errors.log')
+            with open(error_log_path, 'a') as f:
+                f.write(f"{datetime.datetime.now().isoformat()} - load_block_trials failed for {aid}: {e}\n")
+            raise  # Re-raise so we can see the error
         
         # Mark row as in_progress (0.5) IMMEDIATELY to prevent race condition
-        mark_row_in_progress(csv_row_id)
+        try:
+            mark_row_in_progress(csv_row_id)
+            logger.info(f"Marked row {csv_row_id} as in-progress (0.5)")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to mark_row_in_progress for row {csv_row_id}, AID {aid}: {e}")
+            error_log_path = os.path.join(settings.BASE_DIR, 'DATA', 'csv_errors.log')
+            with open(error_log_path, 'a') as f:
+                f.write(f"{datetime.datetime.now().isoformat()} - mark_row_in_progress failed for row {csv_row_id}, {aid}: {e}\n")
+            # Continue anyway - the user can still use the row
         
         # Create record (use get_or_create to prevent race condition)
-        experiment_data, created = ExperimentData.objects.get_or_create(
-            aid=aid,
-            defaults={
-                'ps': ps,
-                'human_sensitivity': dprime_h,
-                'ds_sensitivity': dprime_s,
-                'csv_row_id': csv_row_id,
-                'complete': False
-            }
-        )
+        try:
+            experiment_data, created = ExperimentData.objects.get_or_create(
+                aid=aid,
+                defaults={
+                    'ps': ps,
+                    'human_sensitivity': dprime_h,
+                    'ds_sensitivity': dprime_s,
+                    'csv_row_id': csv_row_id,
+                    'complete': False
+                }
+            )
+            logger.info(f"Created user record: user_id={experiment_data.user_id}, created={created}")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to create ExperimentData for AID {aid}: {e}")
+            error_log_path = os.path.join(settings.BASE_DIR, 'DATA', 'csv_errors.log')
+            with open(error_log_path, 'a') as f:
+                f.write(f"{datetime.datetime.now().isoformat()} - ExperimentData creation failed for {aid}: {e}\n")
+            raise
         
         # If not created, someone else created it first - use their data
         if not created:
@@ -350,6 +473,7 @@ def landing_page(request):
             mark_row_as_available(csv_row_id)
             csv_row_id = experiment_data.csv_row_id
             events_data, _, ps, dprime_h, dprime_s = load_block_trials(csv_row_id=csv_row_id)
+            logger.info(f"User already existed, restored from row {csv_row_id}")
         
         # Store in session
         request.session["user_id"] = experiment_data.user_id
