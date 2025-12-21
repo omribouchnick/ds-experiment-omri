@@ -63,3 +63,4 @@
 
 After making the change, test with a new incomplete user - their `end_time` should match their last action time, not the time they visited the end page.
 
+

@@ -50,3 +50,4 @@ echo "2. Pull: git pull origin main"
 echo "3. Apply stashed changes: git stash pop"
 echo "4. Resolve any conflicts manually"
 
+

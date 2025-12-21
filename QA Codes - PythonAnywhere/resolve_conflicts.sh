@@ -56,3 +56,4 @@ else
     echo "4. git commit -m 'Resolve conflicts in views.py'"
 fi
 
+

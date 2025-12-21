@@ -74,3 +74,4 @@ echo "Files downloaded to: ${LOCAL_BASE_DIR}/"
 echo ""
 echo "You can now run your validation notebook with the latest data!"
 
+
