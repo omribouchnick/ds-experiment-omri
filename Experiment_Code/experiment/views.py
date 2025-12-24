@@ -234,19 +234,23 @@ def mark_row_as_used(user_id: int):
     
     if csv_row_id:
         csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
-        event_data = pd.read_csv(csv_path)
-        event_data.loc[event_data['id'] == csv_row_id, 'used'] = 1
+        lock_path = csv_path + ".lock"
         
-        # Set isDemo: 1 for old users (demo/pilot), 0 for new users (CloudResearch only)
-        # Check if aid is from CloudResearch (not 'test' or local)
-        aid = experiment_data.aid
-        is_demo = 1 if (aid == 'test' or aid.startswith('local_')) else 0
-        
-        if 'isDemo' not in event_data.columns:
-            event_data['isDemo'] = None
-        event_data.loc[event_data['id'] == csv_row_id, 'isDemo'] = is_demo
-        
-        event_data.to_csv(csv_path, index=False)
+        with FileLock(lock_path, timeout=30):
+            event_data = pd.read_csv(csv_path)
+            event_data.loc[event_data['id'] == csv_row_id, 'used'] = 1
+            
+            # Set isDemo: 1 for old users (demo/pilot), 0 for new users (CloudResearch only)
+            # Check if aid is from CloudResearch (not 'test' or local)
+            aid = experiment_data.aid
+            is_demo = 1 if (aid == 'test' or aid.startswith('local_')) else 0
+            
+            if 'isDemo' not in event_data.columns:
+                event_data['isDemo'] = None
+            event_data.loc[event_data['id'] == csv_row_id, 'isDemo'] = is_demo
+            
+            event_data.to_csv(csv_path, index=False)
+        logger.info(f"Marked CSV row {csv_row_id} as used=1 (completed)")
 
 
 def mark_row_as_available(csv_row_id: int):
@@ -257,12 +261,16 @@ def mark_row_as_available(csv_row_id: int):
     """
     if csv_row_id:
         csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
-        event_data = pd.read_csv(csv_path)
-        # Only reset if it's in_progress (0.5), not if already completed (1)
-        current_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values[0]
-        if current_value == 0.5:
-            event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
-            event_data.to_csv(csv_path, index=False)
+        lock_path = csv_path + ".lock"
+        
+        with FileLock(lock_path, timeout=30):
+            event_data = pd.read_csv(csv_path)
+            # Only reset if it's in_progress (0.5), not if already completed (1)
+            current_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values[0]
+            if current_value == 0.5:
+                event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
+                event_data.to_csv(csv_path, index=False)
+                logger.info(f"Reset CSV row {csv_row_id} to used=0 (abandoned)")
 
 
 def _reset_abandoned_rows():
@@ -270,11 +278,14 @@ def _reset_abandoned_rows():
     Auto-timeout: Reset CSV rows that have been in-progress (used=0.5) for >30 minutes.
     Only checks users with used=0.5 rows (not all incomplete users).
     Called on landing_page() - when user 100 arrives, it checks if user 99's row should be reset.
+    
+    OPTIMIZATION: First check without lock, only acquire lock if there's work to do.
     """
     csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
-    event_data = pd.read_csv(csv_path)
+    lock_path = csv_path + ".lock"
     
-    # Only check rows that are currently 0.5 (in-progress)
+    # Quick check without lock - just read to see if there's any work to do
+    event_data = pd.read_csv(csv_path)
     in_progress_rows = event_data[event_data['used'] == 0.5]
     
     if len(in_progress_rows) == 0:
@@ -287,9 +298,10 @@ def _reset_abandoned_rows():
         csv_row_id__in=csv_row_ids
     )
     
+    # Determine which rows need to be reset (without modifying anything yet)
     now = datetime.datetime.now()
     timeout_minutes = 30
-    reset_count = 0
+    rows_to_reset = []
     
     for user in incomplete_users:
         csv_row_id = user.csv_row_id
@@ -300,54 +312,55 @@ def _reset_abandoned_rows():
         last_action = ExperimentAction.objects.filter(user_id=user.user_id).order_by('-id').first()
         
         if last_action:
-            # User has actions - estimate last activity time
-            # Sum all decision_times to estimate when they last acted
             all_actions = ExperimentAction.objects.filter(user_id=user.user_id)
-            total_decision_time = sum(a.decision_time for a in all_actions)  # seconds
+            total_decision_time = sum(a.decision_time for a in all_actions)
             
             start_time = user.start_time
             if isinstance(start_time, str):
                 start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-            
-            # Remove timezone
             if start_time.tzinfo:
                 start_time = start_time.replace(tzinfo=None)
-            if now.tzinfo:
-                now_naive = now.replace(tzinfo=None)
-            else:
-                now_naive = now
             
-            # Last activity ≈ start_time + total decision time
+            now_naive = now.replace(tzinfo=None) if now.tzinfo else now
             last_activity = start_time + datetime.timedelta(seconds=total_decision_time)
-            time_diff = (now_naive - last_activity).total_seconds() / 60  # minutes
+            time_diff = (now_naive - last_activity).total_seconds() / 60
         else:
-            # No actions yet - use start_time
             start_time = user.start_time
             if isinstance(start_time, str):
                 start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-            
-            # Remove timezone
             if start_time.tzinfo:
                 start_time = start_time.replace(tzinfo=None)
-            if now.tzinfo:
-                now_naive = now.replace(tzinfo=None)
-            else:
-                now_naive = now
             
-            time_diff = (now_naive - start_time).total_seconds() / 60  # minutes
+            now_naive = now.replace(tzinfo=None) if now.tzinfo else now
+            time_diff = (now_naive - start_time).total_seconds() / 60
         
-        # If >30 minutes since last activity, reset to 0 and set end_time
-        # User can still come back and complete - it will change to 1 when they finish
         if time_diff > timeout_minutes:
+            rows_to_reset.append((user, csv_row_id, last_action))
+    
+    # If no rows to reset, we're done
+    if len(rows_to_reset) == 0:
+        return
+    
+    # NOW acquire lock to make changes
+    with FileLock(lock_path, timeout=10):
+        # Re-read CSV to get fresh state
+        event_data = pd.read_csv(csv_path)
+        reset_count = 0
+        
+        for user, csv_row_id, last_action in rows_to_reset:
+            # Verify row is still 0.5 (could have changed while we were processing)
+            current_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values
+            if len(current_value) == 0 or current_value[0] != 0.5:
+                continue  # Row state changed, skip
+            
             event_data.loc[event_data['id'] == csv_row_id, 'used'] = 0
             reset_count += 1
             
-            # Set end_time to last action time (if actions exist)
-            if not user.end_time:  # Only set if not already set
+            # Set end_time
+            if not user.end_time:
                 if last_action:
-                    # Calculate last action time: start_time + sum of all decision_times
                     all_actions = ExperimentAction.objects.filter(user_id=user.user_id).order_by('id')
-                    total_decision_time = sum(a.decision_time for a in all_actions)  # seconds
+                    total_decision_time = sum(a.decision_time for a in all_actions)
                     
                     start_time = user.start_time
                     if isinstance(start_time, str):
@@ -359,13 +372,13 @@ def _reset_abandoned_rows():
                     user.end_time = last_action_time.isoformat()
                     user.save()
                 else:
-                    # No actions - set to start_time
                     user.end_time = user.start_time.isoformat() if isinstance(user.start_time, str) else str(user.start_time)
                     user.save()
-    
-    # Save if any changes
-    if reset_count > 0:
-        event_data.to_csv(csv_path, index=False)
+        
+        # Save if any changes
+        if reset_count > 0:
+            event_data.to_csv(csv_path, index=False)
+            logger.info(f"Reset {reset_count} abandoned rows to used=0")
 
 
 def landing_page(request):
