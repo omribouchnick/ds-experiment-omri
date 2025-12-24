@@ -92,7 +92,7 @@ def load_block_trials(csv_row_id=None) -> tuple:
     else:
         # NEW USER - ATOMIC selection with FileLock to prevent race conditions
         # =====================================================================
-        csv_path = csv_path_followup  # New users always get assigned from follow-up CSV
+        # csv_path already defined above - use the same CSV for all users
         try:
             with FileLock(lock_path, timeout=30):  # Wait up to 30 seconds for lock
                 event_data = pd.read_csv(csv_path)
