@@ -12,6 +12,10 @@ import uuid
 import logging
 from .models import *
 
+# FileLock for atomic CSV operations - prevents race conditions
+# Install: pip install filelock
+from filelock import FileLock, Timeout
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -48,8 +52,10 @@ def log_landing_attempt(request, aid, source):
 def load_block_trials(csv_row_id=None) -> tuple:
     """
     Load trial data from CSV for a user.
-    - If csv_row_id provided: load that specific row
-    - If not: select unused row, or cycle through if all used
+    FIXED: Uses FileLock for atomic row selection to prevent race conditions.
+    
+    - If csv_row_id provided: load that specific row (returning user)
+    - If not: select unused row atomically with FileLock
     
     Returns: (data_dict, row_id, ps, dprime_h, dprime_s) where:
         - data_dict: all trial data organized by blocks
@@ -59,8 +65,9 @@ def load_block_trials(csv_row_id=None) -> tuple:
     # Scalar to add to all stimuli values (makes task harder without changing probabilities)
     STIMULI_SCALAR = 6.5
     
-    # Load CSV - with explicit path validation
-    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+    # === FOLLOW-UP EXPERIMENT: Use the new CSV with 69 missing combinations ===
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
+    lock_path = csv_path + ".lock"  # Lock file for atomic operations
     
     # Verify path exists
     if not os.path.exists(csv_path):
@@ -71,58 +78,65 @@ def load_block_trials(csv_row_id=None) -> tuple:
             logger.error(f"Contents of DATA folder: {os.listdir(os.path.join(settings.BASE_DIR, 'DATA'))}")
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     
-    try:
-        event_data = pd.read_csv(csv_path)
-        logger.debug(f"Loaded CSV with {len(event_data)} rows")
-    except Exception as e:
-        logger.error(f"CRITICAL: Failed to read CSV at {csv_path}: {e}")
-        raise
-    
     if csv_row_id:
-        # Load specific row
+        # Returning user - load their specific row (no lock needed)
+        try:
+            event_data = pd.read_csv(csv_path)
+            logger.debug(f"Loaded CSV with {len(event_data)} rows")
+        except Exception as e:
+            logger.error(f"CRITICAL: Failed to read CSV at {csv_path}: {e}")
+            raise
+        
         matching_rows = event_data[event_data['id'] == csv_row_id]
         if len(matching_rows) == 0:
             logger.error(f"CRITICAL: CSV row {csv_row_id} not found in CSV!")
             raise ValueError(f"CSV row {csv_row_id} not found")
         selected_row = matching_rows.iloc[0]
         row_id = int(selected_row['id'])
-        logger.debug(f"Loaded specific row {row_id}")
+        logger.debug(f"Loaded specific row {row_id} for returning user")
     else:
-        # Select new row with 3-tier priority:
-        # 1. Fresh rows (used=0) - preferred
-        # 2. In-progress rows (used=0.5) - if fresh < 5
-        # 3. Any row - if all completed (used=1)
-        
-        fresh_rows = event_data[event_data['used'] == 0].copy()
-        in_progress_rows = event_data[event_data['used'] == 0.5].copy()
-        completed_rows = event_data[event_data['used'] == 1].copy()
-        
-        logger.info(f"Row availability: fresh={len(fresh_rows)}, in_progress={len(in_progress_rows)}, completed={len(completed_rows)}")
-        
-        if len(fresh_rows) >= 5:
-            # Plenty of fresh rows - use those
-            selected_row = fresh_rows.sample(n=1).iloc[0]
-            row_id = int(selected_row['id'])
-            logger.info(f"Selected fresh row {row_id} (plenty available)")
-        elif len(fresh_rows) > 0:
-            # Few fresh rows left (< 5) - include in_progress as fallback
-            available_rows = pd.concat([fresh_rows, in_progress_rows])
-            selected_row = available_rows.sample(n=1).iloc[0]
-            row_id = int(selected_row['id'])
-            logger.info(f"Selected row {row_id} from fresh+in_progress pool (few fresh left)")
-        elif len(in_progress_rows) > 0:
-            # No fresh rows, but some in_progress - use those
-            selected_row = in_progress_rows.sample(n=1).iloc[0]
-            row_id = int(selected_row['id'])
-            logger.warning(f"Selected in-progress row {row_id} (no fresh rows!)")
-        else:
-            # All rows completed (used=1) - recycle any row
-            if len(event_data) == 0:
-                logger.error("CRITICAL: CSV has no rows!")
-                raise ValueError("CSV file is empty")
+        # NEW USER - ATOMIC selection with FileLock to prevent race conditions
+        # =====================================================================
+        try:
+            with FileLock(lock_path, timeout=30):  # Wait up to 30 seconds for lock
+                event_data = pd.read_csv(csv_path)
+                
+                fresh_rows = event_data[event_data['used'] == 0].copy()
+                in_progress_rows = event_data[event_data['used'] == 0.5].copy()
+                completed_rows = event_data[event_data['used'] == 1].copy()
+                
+                logger.info(f"Row availability: fresh={len(fresh_rows)}, in_progress={len(in_progress_rows)}, completed={len(completed_rows)}")
+                
+                if len(fresh_rows) > 0:
+                    # Fresh rows available - select one
+                    selected_row = fresh_rows.sample(n=1).iloc[0]
+                    row_id = int(selected_row['id'])
+                    
+                    # Mark as in-progress IMMEDIATELY (still inside lock!)
+                    event_data.loc[event_data['id'] == row_id, 'used'] = 0.5
+                    event_data.to_csv(csv_path, index=False)
+                    
+                    logger.info(f"Selected fresh row {row_id} and marked as 0.5 (ATOMIC)")
+                elif len(in_progress_rows) > 0:
+                    # No fresh rows - use in-progress (someone might have abandoned)
+                    selected_row = in_progress_rows.sample(n=1).iloc[0]
+                    row_id = int(selected_row['id'])
+                    logger.warning(f"Selected in-progress row {row_id} (no fresh rows!)")
+                else:
+                    # All rows completed (used=1) - recycle any row
+                    if len(event_data) == 0:
+                        logger.error("CRITICAL: CSV has no rows!")
+                        raise ValueError("CSV file is empty")
+                    selected_row = event_data.sample(n=1).iloc[0]
+                    row_id = int(selected_row['id'])
+                    logger.warning(f"RECYCLING completed row {row_id} (all rows used!)")
+                    
+        except Timeout:
+            # Lock timeout - log error and use fallback (rare edge case)
+            logger.error("FileLock timeout after 30 seconds - selecting random row without lock")
+            event_data = pd.read_csv(csv_path)
             selected_row = event_data.sample(n=1).iloc[0]
             row_id = int(selected_row['id'])
-            logger.warning(f"RECYCLING completed row {row_id} (all rows used!)")
     
     # Extract ps and dprimes from the selected row
     ps = float(selected_row['ps'])
@@ -177,11 +191,11 @@ def load_block_trials(csv_row_id=None) -> tuple:
 def mark_row_in_progress(csv_row_id: int):
     """
     Mark CSV row as used=0.5 when user STARTS experiment.
-    This prevents race conditions where 2 users get the same row.
-    Called from landing_page when new user is created.
+    NOTE: This is now handled atomically inside load_block_trials() with FileLock.
+    This function is kept for backwards compatibility but should not be called for new users.
     """
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
         
         if not os.path.exists(csv_path):
             logger.error(f"CRITICAL: CSV not found at {csv_path} in mark_row_in_progress")
@@ -210,7 +224,7 @@ def mark_row_as_used(user_id: int):
     csv_row_id = experiment_data.csv_row_id
     
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
         event_data = pd.read_csv(csv_path)
         event_data.loc[event_data['id'] == csv_row_id, 'used'] = 1
         
@@ -233,7 +247,7 @@ def mark_row_as_available(csv_row_id: int):
     Called when incomplete user is detected.
     """
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
         event_data = pd.read_csv(csv_path)
         # Only reset if it's in_progress (0.5), not if already completed (1)
         current_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values[0]
@@ -248,7 +262,7 @@ def _reset_abandoned_rows():
     Only checks users with used=0.5 rows (not all incomplete users).
     Called on landing_page() - when user 100 arrives, it checks if user 99's row should be reset.
     """
-    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
     event_data = pd.read_csv(csv_path)
     
     # Only check rows that are currently 0.5 (in-progress)
@@ -444,16 +458,18 @@ def landing_page(request):
                 f.write(f"{datetime.datetime.now().isoformat()} - load_block_trials failed for {aid}: {e}\n")
             raise  # Re-raise so we can see the error
         
-        # Mark row as in_progress (0.5) IMMEDIATELY to prevent race condition
-        try:
-            mark_row_in_progress(csv_row_id)
-            logger.info(f"Marked row {csv_row_id} as in-progress (0.5)")
-        except Exception as e:
-            logger.error(f"CRITICAL: Failed to mark_row_in_progress for row {csv_row_id}, AID {aid}: {e}")
-            error_log_path = os.path.join(settings.BASE_DIR, 'DATA', 'csv_errors.log')
-            with open(error_log_path, 'a') as f:
-                f.write(f"{datetime.datetime.now().isoformat()} - mark_row_in_progress failed for row {csv_row_id}, {aid}: {e}\n")
-            # Continue anyway - the user can still use the row
+        # NOTE: Row marking is now done atomically inside load_block_trials() with FileLock
+        # The separate mark_row_in_progress() call is no longer needed and is commented out
+        # to prevent the race condition that caused duplicate assignments in the first experiment.
+        #
+        # OLD CODE (caused race condition):
+        # try:
+        #     mark_row_in_progress(csv_row_id)
+        #     logger.info(f"Marked row {csv_row_id} as in-progress (0.5)")
+        # except Exception as e:
+        #     logger.error(f"CRITICAL: Failed to mark_row_in_progress for row {csv_row_id}, AID {aid}: {e}")
+        #     ...
+        logger.info(f"Row {csv_row_id} was marked as 0.5 atomically inside load_block_trials()")
         
         # Create record (use get_or_create to prevent race condition)
         try:

@@ -1,0 +1,53 @@
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    DEPLOYMENT CHECKLIST                                     ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  STEP 1: PREPARE FILES (LOCAL)                                              ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  □ Run Cell 25 to create conditions_followup_69_missing.csv                 ║
+║  □ Verify the CSV has 100 rows (69 unique + 31 duplicates)                  ║
+║                                                                              ║
+║  STEP 2: INSTALL DEPENDENCY (PYTHONANYWHERE)                                ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  SSH/Console to PythonAnywhere and run:                                     ║
+║    pip install filelock                                                     ║
+║                                                                              ║
+║  STEP 3: UPLOAD NEW CSV (PYTHONANYWHERE)                                    ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  Upload conditions_followup_69_missing.csv to:                              ║
+║    /home/yourusername/Experiment_Code/DATA/                                 ║
+║                                                                              ║
+║  STEP 4: UPDATE views.py (PYTHONANYWHERE)                                   ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  □ Add "from filelock import FileLock" at top                               ║
+║  □ Change CSV path to "conditions_followup_69_missing.csv"                  ║
+║  □ Wrap CSV operations in FileLock (see code above)                         ║
+║  □ Comment out separate mark_row_in_progress() call                         ║
+║                                                                              ║
+║  STEP 5: CLEAR DATABASE (PYTHONANYWHERE)                                    ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  Clear experiment data for fresh start:                                     ║
+║    python manage.py shell                                                   ║
+║    >>> from experiment.models import *                                      ║
+║    >>> ExperimentAction.objects.all().delete()                              ║
+║    >>> ExperimentData.objects.all().delete()                                ║
+║    >>> TOASTResponse.objects.all().delete()                                 ║
+║    >>> exit()                                                               ║
+║                                                                              ║
+║  STEP 6: RELOAD WEB APP (PYTHONANYWHERE)                                    ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  Click "Reload" button in PythonAnywhere Web tab                            ║
+║                                                                              ║
+║  STEP 7: TEST LOCALLY FIRST                                                 ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  Open experiment in 2-3 browser tabs simultaneously                         ║
+║  Verify each gets a DIFFERENT row (check logs or CSV)                       ║
+║                                                                              ║
+║  STEP 8: LAUNCH ON PROLIFIC                                                 ║
+║  ─────────────────────────────────────────────────────────────────────────── ║
+║  □ Create new study targeting ~100-120 participants                         ║
+║  □ Set completion URL                                                       ║
+║  □ Launch and monitor!                                                      ║
+║                                                                              ║
+╚════════════════════════════════════════════════════════════════════════════╝
