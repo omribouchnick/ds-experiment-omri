@@ -291,22 +291,27 @@ def _reset_abandoned_rows():
     if len(in_progress_rows) == 0:
         return  # No in-progress rows to check
     
-    # Get users with these CSV rows
+    # Get the MOST RECENT incomplete user for each csv_row_id
+    # This prevents old users from affecting rows assigned to newer users
     csv_row_ids = in_progress_rows['id'].tolist()
-    incomplete_users = ExperimentData.objects.filter(
-        complete=False, 
-        csv_row_id__in=csv_row_ids
-    )
+    
+    # Find the most recent user for each csv_row_id
+    most_recent_users = {}
+    for csv_row_id in csv_row_ids:
+        latest_user = ExperimentData.objects.filter(
+            csv_row_id=csv_row_id
+        ).order_by('-start_time').first()
+        
+        if latest_user and not latest_user.complete:
+            most_recent_users[csv_row_id] = latest_user
     
     # Determine which rows need to be reset (without modifying anything yet)
     now = datetime.datetime.now()
     timeout_minutes = 30
     rows_to_reset = []
     
-    for user in incomplete_users:
-        csv_row_id = user.csv_row_id
-        if csv_row_id is None or csv_row_id not in csv_row_ids:
-            continue
+    for csv_row_id, user in most_recent_users.items():
+        # csv_row_id already available from the dict key
         
         # Get last action time (most recent action ID = most recent activity)
         last_action = ExperimentAction.objects.filter(user_id=user.user_id).order_by('-id').first()
