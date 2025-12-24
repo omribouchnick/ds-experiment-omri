@@ -75,3 +75,4 @@ echo ""
 echo "You can now run your validation notebook with the latest data!"
 
 
+

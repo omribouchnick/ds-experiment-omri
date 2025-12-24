@@ -65,27 +65,22 @@ def load_block_trials(csv_row_id=None) -> tuple:
     # Scalar to add to all stimuli values (makes task harder without changing probabilities)
     STIMULI_SCALAR = 6.5
     
-    # === FOLLOW-UP EXPERIMENT: Use the new CSV with 69 missing combinations ===
-    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
+    # === SINGLE CSV with corrected 'used' column ===
+    # - used=1: Already completed (~294 rows)
+    # - used=0: Never completed (69 rows) - these will be assigned to new users
+    # - used=0.5: Currently in progress
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
     lock_path = csv_path + ".lock"  # Lock file for atomic operations
     
     # Verify path exists
     if not os.path.exists(csv_path):
         logger.error(f"CRITICAL: CSV file not found at {csv_path}")
-        logger.error(f"BASE_DIR = {settings.BASE_DIR}")
-        logger.error(f"Contents of BASE_DIR: {os.listdir(settings.BASE_DIR)}")
-        if os.path.exists(os.path.join(settings.BASE_DIR, "DATA")):
-            logger.error(f"Contents of DATA folder: {os.listdir(os.path.join(settings.BASE_DIR, 'DATA'))}")
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
     
     if csv_row_id:
-        # Returning user - load their specific row (no lock needed)
-        try:
-            event_data = pd.read_csv(csv_path)
-            logger.debug(f"Loaded CSV with {len(event_data)} rows")
-        except Exception as e:
-            logger.error(f"CRITICAL: Failed to read CSV at {csv_path}: {e}")
-            raise
+        # RETURNING USER - load their specific row
+        event_data = pd.read_csv(csv_path)
+        logger.debug(f"Loaded CSV with {len(event_data)} rows")
         
         matching_rows = event_data[event_data['id'] == csv_row_id]
         if len(matching_rows) == 0:
@@ -97,6 +92,7 @@ def load_block_trials(csv_row_id=None) -> tuple:
     else:
         # NEW USER - ATOMIC selection with FileLock to prevent race conditions
         # =====================================================================
+        csv_path = csv_path_followup  # New users always get assigned from follow-up CSV
         try:
             with FileLock(lock_path, timeout=30):  # Wait up to 30 seconds for lock
                 event_data = pd.read_csv(csv_path)
@@ -195,7 +191,7 @@ def mark_row_in_progress(csv_row_id: int):
     This function is kept for backwards compatibility but should not be called for new users.
     """
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
         
         if not os.path.exists(csv_path):
             logger.error(f"CRITICAL: CSV not found at {csv_path} in mark_row_in_progress")
@@ -224,7 +220,7 @@ def mark_row_as_used(user_id: int):
     csv_row_id = experiment_data.csv_row_id
     
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
         event_data = pd.read_csv(csv_path)
         event_data.loc[event_data['id'] == csv_row_id, 'used'] = 1
         
@@ -247,7 +243,7 @@ def mark_row_as_available(csv_row_id: int):
     Called when incomplete user is detected.
     """
     if csv_row_id:
-        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
+        csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
         event_data = pd.read_csv(csv_path)
         # Only reset if it's in_progress (0.5), not if already completed (1)
         current_value = event_data.loc[event_data['id'] == csv_row_id, 'used'].values[0]
@@ -262,7 +258,7 @@ def _reset_abandoned_rows():
     Only checks users with used=0.5 rows (not all incomplete users).
     Called on landing_page() - when user 100 arrives, it checks if user 99's row should be reset.
     """
-    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_followup_69_missing.csv")
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions_experiment_3ps_11x11_120_A.csv")
     event_data = pd.read_csv(csv_path)
     
     # Only check rows that are currently 0.5 (in-progress)

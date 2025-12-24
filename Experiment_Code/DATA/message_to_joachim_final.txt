@@ -1,0 +1,296 @@
+
+================================================================================
+📧 MESSAGE TO JOACHIM - EXPERIMENT DATA STATUS
+================================================================================
+
+Hi Joachim,
+
+Here's a comprehensive summary of the experiment data analysis and our options.
+
+--------------------------------------------------------------------------------
+1. WHAT HAPPENED - THE RACE CONDITION
+--------------------------------------------------------------------------------
+
+We designed the experiment with 363 unique parameter combinations:
+- 3 ps levels (0.2, 0.35, 0.5)  
+- 11 d'_Human levels (0.5–2.5)
+- 11 d'_DS levels (0.5–2.5)
+
+The row assignment was supposed to work like this:
+1. User lands → Select an unused CSV row (used=0)
+2. Mark row as in-progress (used=0.5)
+3. User completes → Mark row as used (used=1)
+
+THE BUG: Steps 1 and 2 were NOT atomic. The code was:
+   ```python
+   events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()  # Step 1: SELECT row
+   # ... other code ...
+   mark_row_in_progress(csv_row_id)  # Step 2: MARK row (happens LATER)
+   ```
+
+When Prolific sent a burst of users simultaneously (which happens during study launch),
+multiple users executed Step 1 at the SAME time, saw the SAME available rows,
+and were assigned the SAME row BEFORE any could be marked as 0.5.
+
+RESULT:
+- 419 completed users (non-test)
+- But only 294 unique combinations have data (some got 2-3 users)
+- 69 combinations (19%) have NO completion data
+
+--------------------------------------------------------------------------------
+2. IS THE DATA BIASED?
+--------------------------------------------------------------------------------
+
+We ran statistical tests on the missing combinations:
+
+| Factor     | χ² statistic | p-value | Result      |
+|------------|--------------|---------|-------------|
+| ps         | 4.26         | 0.119   | ✅ RANDOM   |
+| d'_Human   | 6.72         | 0.751   | ✅ RANDOM   |
+| d'_DS      | 6.72         | 0.751   | ✅ RANDOM   |
+
+All p > 0.05 → The missing combinations are RANDOMLY distributed, not systematically biased.
+
+Additionally, the mean/median of completed users match expected uniform distribution:
+- d'_Human: Mean=1.486, Median=1.500 (expected: 1.5) ✅
+- d'_DS: Mean=1.495, Median=1.500 (expected: 1.5) ✅
+- ps: Mean=0.347, Median=0.350 (expected: 0.35) ✅
+
+--------------------------------------------------------------------------------
+3. MISSING COMBINATIONS BY FACTOR
+--------------------------------------------------------------------------------
+
+By ps:
+- ps=0.2:  15 missing (12.4% of 121 combos) - slightly under-represented in missing ✅
+- ps=0.35: 28 missing (23.1% of 121 combos)
+- ps=0.5:  26 missing (21.5% of 121 combos)
+
+By d'_Human and d'_DS: Fairly uniform distribution (4-10 missing per level)
+
+--------------------------------------------------------------------------------
+4. RECOMMENDATION
+--------------------------------------------------------------------------------
+
+✅ OPTION 1: ANALYZE CURRENT DATA (RECOMMENDED)
+
+The data is suitable for analysis because:
+1. Missing is RANDOM (all chi-square p > 0.05)
+2. 419 completed users is well-powered for main effects and 2-way interactions
+3. Mean/median match expected uniform distribution
+
+For the paper, include this limitation:
+"19% of 3-way factorial combinations (69/363) were not sampled due to a race 
+condition in concurrent user allocation. Chi-square tests confirm the missing 
+combinations are randomly distributed (ps: p=0.119, d'_Human: p=0.751, d'_DS: p=0.751)."
+
+For 3-way interactions, use mixed-effects models that handle unbalanced designs.
+
+⚠️ OPTION 2: SUPPLEMENT WITH ADDITIONAL DATA
+
+If complete factorial coverage is required:
+1. Fix the code (see below)
+2. Run a smaller study targeting ONLY the 69 missing combinations
+3. Recruit ~69-100 more participants
+
+This would give complete coverage but adds time and cost.
+
+--------------------------------------------------------------------------------
+5. CODE FIX FOR FUTURE EXPERIMENTS
+--------------------------------------------------------------------------------
+
+The fix makes row selection ATOMIC by using database locking:
+
+CURRENT CODE (BUGGY):
+```python
+# landing_page view:
+events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()  # SELECT
+# ... other code can execute here for other users ...
+mark_row_in_progress(csv_row_id)  # MARK (too late!)
+```
+
+FIXED CODE (ATOMIC):
+```python
+from django.db import transaction
+from filelock import FileLock
+
+def load_block_trials_atomic() -> tuple:
+    '''Atomic row selection using file lock'''
+    csv_path = os.path.join(settings.BASE_DIR, "DATA", "conditions.csv")
+    lock_path = csv_path + ".lock"
+
+    with FileLock(lock_path):  # Only ONE process can hold this lock
+        event_data = pd.read_csv(csv_path)
+
+        # Select fresh row
+        fresh_rows = event_data[event_data['used'] == 0]
+        if len(fresh_rows) > 0:
+            selected_row = fresh_rows.sample(n=1).iloc[0]
+            row_id = int(selected_row['id'])
+
+            # Mark as 0.5 IMMEDIATELY (still inside lock)
+            event_data.loc[event_data['id'] == row_id, 'used'] = 0.5
+            event_data.to_csv(csv_path, index=False)
+        else:
+            # Handle no fresh rows...
+            pass
+
+    # Lock is released here - other users can now read
+    return data_dict, row_id, ps, dprime_h, dprime_s
+```
+
+ALTERNATIVE (Better): Move conditions to database:
+```python
+# models.py
+class ExperimentCondition(models.Model):
+    ps = models.FloatField()
+    dprime_h = models.FloatField()
+    dprime_s = models.FloatField()
+    used = models.FloatField(default=0)  # 0, 0.5, 1
+    # ... trial columns ...
+
+# views.py
+from django.db import transaction
+
+def get_next_condition():
+    with transaction.atomic():
+        condition = ExperimentCondition.objects.select_for_update(
+            skip_locked=True  # Skip rows being used by other transactions
+        ).filter(used=0).first()
+
+        if condition:
+            condition.used = 0.5
+            condition.save()
+
+        return condition
+```
+
+This uses database-level locking which is much more reliable than file locks.
+
+--------------------------------------------------------------------------------
+
+Best regards,
+Omri
+
+================================================================================
+
+
+
+================================================================================
+📧 הודעה ליואכים - סטטוס נתוני הניסוי
+================================================================================
+
+היי יואכים,
+
+הנה סיכום מקיף של ניתוח נתוני הניסוי והאפשרויות שלנו.
+
+--------------------------------------------------------------------------------
+1. מה קרה - בעיית RACE CONDITION
+--------------------------------------------------------------------------------
+
+תכננו ניסוי עם 363 שילובי פרמטרים ייחודיים:
+- 3 רמות ps (0.2, 0.35, 0.5)
+- 11 רמות d'_Human (0.5–2.5)
+- 11 רמות d'_DS (0.5–2.5)
+
+הקצאת השורות הייתה אמורה לעבוד כך:
+1. משתמש נוחת → בחירת שורת CSV פנויה (used=0)
+2. סימון השורה כ"בתהליך" (used=0.5)
+3. משתמש מסיים → סימון השורה כ"בשימוש" (used=1)
+
+הבאג: שלבים 1 ו-2 לא היו אטומיים. הקוד היה:
+   ```python
+   events_data, csv_row_id, ps, dprime_h, dprime_s = load_block_trials()  # שלב 1: בחירה
+   # ... קוד אחר ...
+   mark_row_in_progress(csv_row_id)  # שלב 2: סימון (קורה מאוחר מדי!)
+   ```
+
+כאשר Prolific שלח פרץ של משתמשים בו-זמנית (מה שקורה בהשקת מחקר),
+מספר משתמשים ביצעו שלב 1 באותו זמן, ראו את אותן שורות פנויות,
+וקיבלו את אותה שורה לפני שמישהו הספיק לסמן אותה כ-0.5.
+
+תוצאה:
+- 419 משתמשים שהשלימו (לא בדיקות)
+- אבל רק 294 שילובים ייחודיים יש להם נתונים (חלק קיבלו 2-3 משתמשים)
+- 69 שילובים (19%) אין להם נתוני השלמה
+
+--------------------------------------------------------------------------------
+2. האם הנתונים מוטים?
+--------------------------------------------------------------------------------
+
+הרצנו בדיקות סטטיסטיות על השילובים החסרים:
+
+| גורם      | χ²        | p-value | תוצאה       |
+|-----------|-----------|---------|-------------|
+| ps        | 4.26      | 0.119   | ✅ אקראי    |
+| d'_Human  | 6.72      | 0.751   | ✅ אקראי    |
+| d'_DS     | 6.72      | 0.751   | ✅ אקראי    |
+
+כל p > 0.05 → השילובים החסרים מתפלגים באקראי, לא הטיה שיטתית.
+
+בנוסף, הממוצע והחציון של המשתמשים שהשלימו תואמים התפלגות אחידה צפויה:
+- d'_Human: ממוצע=1.486, חציון=1.500 (צפוי: 1.5) ✅
+- d'_DS: ממוצע=1.495, חציון=1.500 (צפוי: 1.5) ✅
+- ps: ממוצע=0.347, חציון=0.350 (צפוי: 0.35) ✅
+
+--------------------------------------------------------------------------------
+3. המלצה
+--------------------------------------------------------------------------------
+
+✅ אפשרות 1: לנתח את הנתונים הנוכחיים (מומלץ)
+
+הנתונים מתאימים לניתוח כי:
+1. החסרים אקראיים (כל בדיקות chi-square עם p > 0.05)
+2. 419 משתמשים שהשלימו - מספיק לאפקטים עיקריים ואינטראקציות דו-כיווניות
+3. ממוצע/חציון תואמים התפלגות אחידה צפויה
+
+למאמר, לכלול מגבלה זו:
+"19% משילובי ה-factorial התלת-כיווניים (69/363) לא נדגמו עקב race condition 
+בהקצאת משתמשים בו-זמנית. בדיקות chi-square מאשרות שהשילובים החסרים 
+מתפלגים אקראית (ps: p=0.119, d'_Human: p=0.751, d'_DS: p=0.751)."
+
+⚠️ אפשרות 2: להשלים עם נתונים נוספים
+
+אם נדרש כיסוי פקטוריאלי מלא:
+1. לתקן את הקוד (ראה למטה)
+2. להריץ מחקר קטן יותר המכוון רק ל-69 השילובים החסרים
+3. לגייס ~69-100 משתתפים נוספים
+
+--------------------------------------------------------------------------------
+4. תיקון הקוד לניסויים עתידיים
+--------------------------------------------------------------------------------
+
+התיקון הופך את בחירת השורה לאטומית באמצעות נעילת קבצים/מסד נתונים:
+
+עדיף: להעביר תנאים למסד נתונים:
+```python
+# models.py
+class ExperimentCondition(models.Model):
+    ps = models.FloatField()
+    dprime_h = models.FloatField()
+    dprime_s = models.FloatField()
+    used = models.FloatField(default=0)
+
+# views.py
+from django.db import transaction
+
+def get_next_condition():
+    with transaction.atomic():
+        condition = ExperimentCondition.objects.select_for_update(
+            skip_locked=True
+        ).filter(used=0).first()
+
+        if condition:
+            condition.used = 0.5
+            condition.save()
+
+        return condition
+```
+
+זה משתמש בנעילה ברמת מסד הנתונים שהיא הרבה יותר אמינה מנעילת קבצים.
+
+--------------------------------------------------------------------------------
+
+בברכה,
+עומרי
+
+================================================================================

@@ -97,3 +97,4 @@ If conflicts are too complex, you can:
 2. Manually add the end_time setting in `_reset_abandoned_rows()` (see the code in commit 41883bb)
 
 
+
