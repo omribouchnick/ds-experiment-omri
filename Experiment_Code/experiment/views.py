@@ -110,7 +110,20 @@ def load_block_trials(csv_row_id=None) -> tuple:
                     
                     # Mark as in-progress IMMEDIATELY (still inside lock!)
                     event_data.loc[event_data['id'] == row_id, 'used'] = 0.5
-                    event_data.to_csv(csv_path, index=False)
+                    
+                    # Retry CSV write up to 3 times (handles rare OS write errors)
+                    for write_attempt in range(3):
+                        try:
+                            event_data.to_csv(csv_path, index=False)
+                            break
+                        except OSError as e:
+                            if write_attempt < 2:
+                                import time
+                                time.sleep(0.1)  # Wait 100ms and retry
+                                logger.warning(f"CSV write failed (attempt {write_attempt + 1}), retrying: {e}")
+                            else:
+                                logger.error(f"CSV write failed after 3 attempts: {e}")
+                                raise
                     
                     logger.info(f"Selected fresh row {row_id} and marked as 0.5 (ATOMIC)")
                 elif len(in_progress_rows) > 0:
